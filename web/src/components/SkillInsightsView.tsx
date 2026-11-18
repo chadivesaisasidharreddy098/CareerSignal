@@ -14,16 +14,16 @@ const ROLE_INSIGHTS: Record<string, RoleInsightData> = {
   'Product Analyst': {
     roleTitle: 'Product Analyst',
     skills: [
-      { name: 'SQL & Distributed Queries', level: 'Strong', pct: 90 },
-      { name: 'Experiment design & A/B Testing', level: 'Developing', pct: 60 },
-      { name: 'Stakeholder storytelling & Dashboards', level: 'Developing', pct: 55 },
-      { name: 'Product sense & Metric trees', level: 'Gap', pct: 30 },
+      { name: 'SQL', level: 'Strong', pct: 90 },
+      { name: 'Experiment design', level: 'Developing', pct: 60 },
+      { name: 'Stakeholder storytelling', level: 'Developing', pct: 55 },
+      { name: 'Product sense', level: 'Gap', pct: 30 },
     ],
-    inDemand: ['Experimentation', 'dbt', 'Stakeholder reporting', 'Amplitude', 'Metric Trees'],
+    inDemand: ['Experimentation', 'dbt', 'Stakeholder reporting'],
     recommendations: [
       { title: 'Complete an A/B testing mini-course', desc: 'Closes the experiment design gap. About 6 hours.' },
-      { title: 'Publish a product case study', desc: 'Adds proof for stakeholder storytelling on LinkedIn & GitHub.' },
-      { title: 'Take the SQL window functions assessment', desc: 'Raises SQL to verified corporate advanced level.' },
+      { title: 'Publish a product case study', desc: 'Adds proof for stakeholder storytelling.' },
+      { title: 'Take the SQL window functions assessment', desc: 'Raises SQL to verified advanced level.' },
     ],
   },
   'Software Analyst': {
@@ -46,7 +46,7 @@ const ROLE_INSIGHTS: Record<string, RoleInsightData> = {
     skills: [
       { name: 'Figma & Design Systems', level: 'Strong', pct: 92 },
       { name: 'User Research & Personas', level: 'Strong', pct: 85 },
-      { name: 'Micro-interactions & Framer Prototyping', level: 'Developing', pct: 58 },
+      { name: 'Micro-interactions & Prototyping', level: 'Developing', pct: 58 },
       { name: 'WCAG 2.1 AA Accessibility Auditing', level: 'Gap', pct: 32 },
     ],
     inDemand: ['Design Tokens', 'Storybook', 'Design Ops', 'A/B Testing UI'],
@@ -73,41 +73,36 @@ export const SkillInsightsView: React.FC = () => {
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      gap: '1.25rem',
+      gap: '20px',
       flex: 1,
       minHeight: '680px',
+      backgroundColor: '#FFFFFF',
     }}>
-      {/* Header matching PDF */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '0.75rem',
-      }}>
+      {/* Header matching 4_skill_insights.html */}
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#f8fafc' }}>
+          <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: '#0F172A' }}>
             Skill Insights
           </h1>
-          <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-            How your verified skills compare with corporate roles you are targeting.
+          <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#475569' }}>
+            How your skills compare with roles you are targeting.
           </p>
         </div>
 
-        {/* Target role selector buttons */}
-        <div style={{ display: 'flex', gap: '0.45rem', backgroundColor: '#1b1c21', padding: '0.3rem', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+        {/* Role switcher pills */}
+        <div style={{ display: 'flex', gap: '6px', background: '#F8FAFC', padding: '4px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
           {Object.keys(ROLE_INSIGHTS).map((role) => (
             <button
               key={role}
               onClick={() => setSelectedRole(role)}
               style={{
-                padding: '0.35rem 0.85rem',
-                borderRadius: '6px',
+                padding: '6px 14px',
+                borderRadius: '8px',
                 border: 'none',
-                backgroundColor: selectedRole === role ? '#2563eb' : 'transparent',
-                color: selectedRole === role ? '#ffffff' : '#94a3b8',
-                fontSize: '0.74rem',
-                fontWeight: 600,
+                background: selectedRole === role ? '#EFF6FF' : 'transparent',
+                color: selectedRole === role ? '#1D4ED8' : '#64748B',
+                fontSize: '13px',
+                fontWeight: selectedRole === role ? 600 : 500,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
@@ -116,53 +111,48 @@ export const SkillInsightsView: React.FC = () => {
             </button>
           ))}
         </div>
-      </div>
+      </header>
 
-      {/* 2-Column Split matching 4_skill_insights.html */}
-      <div style={{
+      {/* 2-Column Section matching 4_skill_insights.html */}
+      <section style={{
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',
-        gap: '1.25rem',
+        gap: '20px',
         flex: 1,
+        minHeight: 0,
       }}>
-        {/* Left Card: Gap Analysis Progress Bars */}
+        {/* Left Column: Gap Analysis */}
         <div style={{
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          backgroundColor: '#1b1c21',
-          borderRadius: '14px',
-          padding: '1.5rem',
+          border: '1px solid #E2E8F0',
+          borderRadius: '12px',
+          padding: '24px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '1.25rem',
+          gap: '18px',
+          backgroundColor: '#FFFFFF',
         }}>
-          <div style={{ fontWeight: 800, fontSize: '0.96rem', color: '#f8fafc' }}>
+          <div style={{ fontWeight: 600, fontSize: '16px', color: '#0F172A' }}>
             Gap analysis: {currentData.roleTitle}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
             {currentData.skills.map((s) => {
               const isGap = s.level === 'Gap';
-              const isStrong = s.level === 'Strong';
               return (
-                <div key={s.name} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                    <span style={{ color: '#f8fafc', fontWeight: 600 }}>{s.name}</span>
-                    <span style={{
-                      color: isStrong ? '#34d399' : isGap ? '#f59e0b' : '#38bdf8',
-                      fontWeight: 700,
-                      fontSize: '0.74rem',
-                    }}>
-                      {s.level} ({s.pct}%)
+                <div key={s.name}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ color: '#0F172A', fontWeight: 500 }}>{s.name}</span>
+                    <span style={{ color: isGap ? '#D97706' : '#64748B', fontWeight: isGap ? 600 : 400 }}>
+                      {s.level}
                     </span>
                   </div>
-
-                  <div style={{ height: '8px', backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: '9999px', overflow: 'hidden' }}>
+                  <div style={{ height: '8px', background: '#F1F5F9', borderRadius: '999px', overflow: 'hidden' }}>
                     <div style={{
                       width: `${s.pct}%`,
                       height: '8px',
-                      backgroundColor: isStrong ? '#10b981' : isGap ? '#f59e0b' : '#2563eb',
-                      borderRadius: '9999px',
-                      transition: 'width 0.4s ease',
+                      background: isGap ? '#F59E0B' : '#2563EB',
+                      borderRadius: '999px',
+                      transition: 'width 0.3s ease',
                     }} />
                   </div>
                 </div>
@@ -172,48 +162,47 @@ export const SkillInsightsView: React.FC = () => {
 
           <div style={{
             marginTop: 'auto',
-            padding: '0.85rem 1rem',
-            backgroundColor: 'rgba(255, 255, 255, 0.03)',
-            borderRadius: '10px',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            fontSize: '0.74rem',
-            color: '#94a3b8',
+            padding: '12px 14px',
+            backgroundColor: '#F8FAFC',
+            borderRadius: '8px',
+            border: '1px solid #E2E8F0',
+            fontSize: '13px',
+            color: '#475569',
             lineHeight: 1.5,
           }}>
-            <strong style={{ color: '#38bdf8', display: 'block', marginBottom: '0.2rem' }}>
+            <strong style={{ color: '#0F172A', display: 'block', marginBottom: '4px' }}>
               Strategic Recommendation:
             </strong>
-            Prioritize resolving the <strong>{currentData.skills.find(s => s.level === 'Gap')?.name}</strong> domain to unlock automatic interview shortlisting at Tier-1 employers.
+            Prioritizing resolving the <strong>{currentData.skills.find(s => s.level === 'Gap')?.name}</strong> domain increases qualification threshold for tier-1 recruiting pools by 45%.
           </div>
         </div>
 
-        {/* Right Card: In Demand & Recommended Next Steps */}
+        {/* Right Column: In Demand & Recommended next steps */}
         <div style={{
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          backgroundColor: '#1b1c21',
-          borderRadius: '14px',
-          padding: '1.5rem',
+          border: '1px solid #E2E8F0',
+          borderRadius: '12px',
+          padding: '24px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '1.1rem',
+          gap: '14px',
+          backgroundColor: '#FFFFFF',
         }}>
-          {/* IN DEMAND THIS QUARTER from PDF */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.04em' }}>
+          {/* IN DEMAND THIS QUARTER */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748B', letterSpacing: '.04em' }}>
               IN DEMAND THIS QUARTER
             </div>
-            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               {currentData.inDemand.map((tag) => (
                 <span
                   key={tag}
                   style={{
-                    fontSize: '0.72rem',
-                    backgroundColor: 'rgba(37, 99, 235, 0.15)',
-                    color: '#93c5fd',
-                    padding: '0.25rem 0.65rem',
-                    borderRadius: '9999px',
-                    border: '1px solid rgba(37, 99, 235, 0.3)',
-                    fontWeight: 600,
+                    fontSize: '12px',
+                    background: '#EFF6FF',
+                    color: '#1D4ED8',
+                    padding: '4px 10px',
+                    borderRadius: '999px',
+                    fontWeight: 500,
                   }}
                 >
                   {tag}
@@ -222,12 +211,11 @@ export const SkillInsightsView: React.FC = () => {
             </div>
           </div>
 
-          {/* Recommended next steps from PDF */}
-          <div style={{ fontWeight: 800, fontSize: '0.96rem', color: '#f8fafc', marginTop: '0.25rem' }}>
+          <div style={{ fontWeight: 600, fontSize: '16px', color: '#0F172A', marginTop: '4px' }}>
             Recommended next steps
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {currentData.recommendations.map((rec) => {
               const done = !!completedSteps[rec.title];
               return (
@@ -235,33 +223,33 @@ export const SkillInsightsView: React.FC = () => {
                   key={rec.title}
                   onClick={() => toggleStep(rec.title)}
                   style={{
-                    padding: '0.85rem 1rem',
-                    border: done ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.08)',
+                    padding: '14px',
+                    border: done ? '1px solid #10B981' : '1px solid #E2E8F0',
                     borderRadius: '10px',
-                    backgroundColor: done ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                    background: done ? '#F0FDF4' : '#FFFFFF',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: '0.5rem',
+                    gap: '12px',
                     transition: 'all 0.15s ease',
                   }}
                 >
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.82rem', color: done ? '#34d399' : '#f8fafc' }}>
+                    <div style={{ fontWeight: 600, fontSize: '14px', color: done ? '#047857' : '#0F172A' }}>
                       {done ? `✓ ${rec.title}` : rec.title}
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.2rem' }}>
+                    <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>
                       {rec.desc}
                     </div>
                   </div>
-                  <ChevronRight size={14} style={{ color: done ? '#10b981' : '#64748b', flexShrink: 0 }} />
+                  <ChevronRight size={16} style={{ color: done ? '#047857' : '#94A3B8', flexShrink: 0 }} />
                 </div>
               );
             })}
           </div>
 
-          {/* Action button matching PDF */}
+          {/* Build my learning plan button */}
           <button
             onClick={() => {
               setLearningPlanBuilt(true);
@@ -270,24 +258,24 @@ export const SkillInsightsView: React.FC = () => {
             style={{
               marginTop: 'auto',
               height: '44px',
-              border: 'none',
+              border: 0,
               borderRadius: '8px',
-              backgroundColor: learningPlanBuilt ? '#10b981' : '#2563eb',
-              color: '#ffffff',
-              font: '700 0.84rem Inter, sans-serif',
+              background: learningPlanBuilt ? '#047857' : '#2563EB',
+              color: '#FFFFFF',
+              font: '600 14px Inter, sans-serif',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '0.45rem',
-              boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+              gap: '8px',
+              transition: 'background-color 0.2s ease',
             }}
           >
             {learningPlanBuilt ? <Check size={16} /> : <Sparkles size={16} />}
             <span>{learningPlanBuilt ? 'Personalized Learning Plan Synced!' : 'Build my learning plan'}</span>
           </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 };

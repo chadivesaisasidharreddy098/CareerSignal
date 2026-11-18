@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { SignalItem, OpenRole } from '../types';
 import { getVerifiedCareerUrl, getDirectJobPortalUrl, getSkillsForRole } from '../lib/api';
-import { Search, Bookmark, Check, ExternalLink, Sparkles, Briefcase, MapPin, DollarSign, Award } from 'lucide-react';
+import { Search, Bookmark, Check, ExternalLink, Sparkles } from 'lucide-react';
 
 interface JobDiscoveryViewProps {
   signals: SignalItem[];
@@ -46,7 +46,7 @@ export const JobDiscoveryView: React.FC<JobDiscoveryViewProps> = ({
     return true;
   });
 
-  const selectedSignal = signals.find((s) => s.id === selectedSignalId) || signals[0];
+  const selectedSignal = signals.find((s) => s.id === selectedSignalId) || filtered[0] || signals[0];
   const firstRole = selectedSignal?.open_roles?.[0];
   const headerRole = firstRole?.title || selectedSignal?.title.split('-')[0].trim() || 'Role';
   const matchPct = selectedSignal ? Math.round((selectedSignal.confidence_score || 0.95) * 100) : 92;
@@ -56,143 +56,124 @@ export const JobDiscoveryView: React.FC<JobDiscoveryViewProps> = ({
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      gap: '1.25rem',
+      gap: '20px',
       flex: 1,
       minHeight: '680px',
+      background: '#FFFFFF',
     }}>
-      {/* Header matching PDF */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '0.75rem',
-      }}>
+      {/* Header matching PDF 2_job_discovery.html */}
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: '#f8fafc' }}>
+          <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: '#0F172A' }}>
             Job Discovery
           </h1>
-          <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-            Direct open roles with guaranteed corporate recruiter review & verified skill matching.
+          <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#475569' }}>
+            Curated corporate opportunities with real-time verified skill matching.
           </p>
         </div>
+        <input
+          aria-label="Search jobs"
+          placeholder="Title, skill or company"
+          value={searchWord}
+          onChange={(e) => setSearchWord(e.target.value)}
+          style={{
+            width: '320px',
+            height: '40px',
+            boxSizing: 'border-box',
+            padding: '0 14px',
+            border: '1px solid #CBD5E1',
+            borderRadius: '8px',
+            font: '400 14px Inter, sans-serif',
+            color: '#0F172A',
+            outline: 'none',
+            backgroundColor: '#FFFFFF',
+          }}
+        />
+      </header>
 
-        <div style={{
-          position: 'relative',
-          width: '320px',
-        }}>
-          <input
-            type="text"
-            placeholder="Title, skill or company..."
-            value={searchWord}
-            onChange={(e) => setSearchWord(e.target.value)}
-            style={{
-              width: '100%',
-              backgroundColor: '#1b1c21',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: '8px',
-              padding: '0.55rem 0.85rem',
-              color: '#f8fafc',
-              fontSize: '0.8rem',
-              outline: 'none',
-            }}
-          />
-        </div>
-      </div>
+      {/* Nav filter pills matching PDF */}
+      <nav style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {(['All matches', 'Remote', 'Full-time', 'Saved'] as const).map((filter) => {
+          const isActive = activeFilter === filter;
+          return (
+            <button
+              key={filter}
+              onClick={() => setActiveFilter(filter)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '999px',
+                background: isActive ? '#0F172A' : '#FFFFFF',
+                color: isActive ? '#FFFFFF' : '#334155',
+                border: isActive ? 'none' : '1px solid #CBD5E1',
+                fontSize: '13px',
+                fontWeight: isActive ? 600 : 400,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {filter} {filter === 'Saved' && Object.values(savedMap).filter(Boolean).length > 0 ? `(${Object.values(savedMap).filter(Boolean).length})` : ''}
+            </button>
+          );
+        })}
+      </nav>
 
-      {/* Filter pills navigation */}
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-        {(['All matches', 'Remote', 'Full-time', 'Saved'] as const).map((filter) => (
-          <button
-            key={filter}
-            onClick={() => setActiveFilter(filter)}
-            style={{
-              padding: '0.4rem 1rem',
-              borderRadius: '9999px',
-              backgroundColor: activeFilter === filter ? '#2563eb' : 'rgba(255, 255, 255, 0.05)',
-              border: activeFilter === filter ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
-              color: activeFilter === filter ? '#ffffff' : '#cbd5e1',
-              fontSize: '0.76rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {filter} {filter === 'Saved' && Object.values(savedMap).filter(Boolean).length > 0 ? `(${Object.values(savedMap).filter(Boolean).length})` : ''}
-          </button>
-        ))}
-      </div>
-
-      {/* 2-Column Split: Left List vs Right Detail Pane */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1.3fr',
-        gap: '1.25rem',
-        flex: 1,
-      }}>
-        {/* Left Column: Job Cards List */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.85rem',
-          maxHeight: '620px',
-          overflowY: 'auto',
-          paddingRight: '0.35rem',
-        }}>
+      {/* Section 2 columns matching 2_job_discovery.html */}
+      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1.25fr', gap: '20px', flex: 1, minHeight: 0 }}>
+        {/* Left Column Job Cards List */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', maxHeight: '600px', paddingRight: '4px' }}>
           {filtered.map((s) => {
             const roleBadge = s.open_roles?.[0]?.title || s.title.split('-')[0].trim();
             const isSelected = s.id === selectedSignalId;
             const pct = Math.round((s.confidence_score || 0.95) * 100);
+            const skills = getSkillsForRole(roleBadge, s.company_name, s.department);
 
             return (
               <div
                 key={s.id}
                 onClick={() => setSelectedSignalId(s.id)}
                 style={{
-                  border: isSelected ? '1.5px solid #2563eb' : '1px solid rgba(255, 255, 255, 0.08)',
-                  backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.12)' : '#1b1c21',
+                  border: isSelected ? '1px solid #2563EB' : '1px solid #E2E8F0',
                   borderRadius: '12px',
-                  padding: '1.1rem',
+                  padding: '18px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.6rem',
+                  gap: '8px',
                   cursor: 'pointer',
+                  backgroundColor: '#FFFFFF',
+                  boxShadow: isSelected ? '0 0 0 1px #2563EB' : 'none',
                   transition: 'all 0.15s ease',
-                  boxShadow: isSelected ? '0 0 20px rgba(37, 99, 235, 0.25)' : 'none',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.94rem', color: '#f8fafc' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontWeight: 600, fontSize: '16px', color: '#0F172A' }}>
                     {roleBadge}
                   </div>
                   <span style={{
-                    fontSize: '0.72rem',
-                    color: '#34d399',
-                    fontWeight: 700,
-                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                    padding: '0.15rem 0.5rem',
-                    borderRadius: '9999px',
+                    fontSize: '12px',
+                    color: pct >= 85 ? '#047857' : '#334155',
+                    backgroundColor: pct >= 85 ? '#ECFDF5' : '#F1F5F9',
+                    padding: '2px 8px',
+                    borderRadius: '999px',
+                    fontWeight: 600,
                   }}>
                     {pct}% match
                   </span>
                 </div>
 
-                <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                  {s.company_name} • {s.city ? `${s.city}, ${s.country}` : s.country} • {s.work_mode || 'Full-time'}
+                <div style={{ fontSize: '13px', color: '#64748B' }}>
+                  {s.company_name} · {s.city ? `${s.city}, ${s.country}` : s.country} · {s.work_mode || 'Full-time'}
                 </div>
 
-                {/* Skill tags */}
-                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                  {getSkillsForRole(roleBadge, s.company_name, s.department).slice(0, 3).map((sk: string) => (
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '2px' }}>
+                  {skills.slice(0, 3).map((sk: string) => (
                     <span
                       key={sk}
                       style={{
-                        fontSize: '0.68rem',
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        padding: '0.15rem 0.45rem',
+                        fontSize: '12px',
+                        background: '#F1F5F9',
+                        color: '#334155',
+                        padding: '3px 8px',
                         borderRadius: '6px',
-                        color: '#cbd5e1',
                       }}
                     >
                       {sk}
@@ -204,75 +185,57 @@ export const JobDiscoveryView: React.FC<JobDiscoveryViewProps> = ({
           })}
         </div>
 
-        {/* Right Column: Detailed Job View Matching PDF Section */}
+        {/* Right Column Job Details Pane matching PDF */}
         {selectedSignal && (
           <div style={{
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            backgroundColor: '#1b1c21',
-            borderRadius: '14px',
-            padding: '1.5rem',
+            border: '1px solid #E2E8F0',
+            borderRadius: '12px',
+            padding: '24px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '1.1rem',
+            gap: '14px',
+            background: '#FFFFFF',
           }}>
-            <div>
-              <div style={{
-                fontSize: '0.72rem',
-                color: '#38bdf8',
-                fontWeight: 800,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-              }}>
-                {headerRole.toUpperCase()}
-              </div>
-              <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#f8fafc', margin: '0.2rem 0' }}>
-                {selectedSignal.company_name}
-              </h2>
-              <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
-                {selectedSignal.city ? `${selectedSignal.city}, ${selectedSignal.country}` : selectedSignal.country} • <strong style={{ color: '#34d399' }}>{selectedSignal.salary_range || 'Competitive Compensation'}</strong>
-              </div>
+            <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 600, letterSpacing: '.04em' }}>
+              {headerRole.toUpperCase()}
+            </div>
+            <div style={{ fontSize: '22px', fontWeight: 700, color: '#0F172A' }}>
+              {selectedSignal.company_name}
+            </div>
+            <div style={{ fontSize: '14px', color: '#334155', lineHeight: 1.6 }}>
+              {selectedSignal.summary}
             </div>
 
-            <p style={{ fontSize: '0.82rem', color: '#cbd5e1', lineHeight: 1.6, margin: 0 }}>
-              {selectedSignal.summary}
-            </p>
-
-            {/* Why you match section from PDF */}
-            <div style={{
-              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-              paddingTop: '1rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.65rem',
-            }}>
-              <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#f8fafc' }}>
+            {/* Why you match section */}
+            <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ fontWeight: 600, fontSize: '14px', color: '#0F172A' }}>
                 Why you match ({matchPct}% Fit)
               </div>
-              <div style={{ fontSize: '0.78rem', color: '#93c5fd', lineHeight: 1.5 }}>
-                ✓ Technical competencies and distributed system specifications from your candidate profile align with the core requirements of {selectedSignal.company_name}.
+              <div style={{ fontSize: '13px', color: '#334155' }}>
+                ✓ Technical competencies and distributed system skills from your candidate profile directly match the core requirements of {selectedSignal.company_name}.
               </div>
-              <div style={{ fontSize: '0.76rem', color: '#94a3b8', lineHeight: 1.5 }}>
-                ℹ Optional gap: formal enterprise case study publication would elevate your profile to top 2% of applicants.
+              <div style={{ fontSize: '13px', color: '#334155' }}>
+                ℹ Gap: formal experimentation experience or a published case study would raise alignment to top 1%.
               </div>
             </div>
 
-            {/* Action buttons from PDF */}
-            <div style={{ marginTop: 'auto', display: 'flex', gap: '0.75rem', paddingTop: '1rem', flexWrap: 'wrap' }}>
+            {/* Bottom buttons matching 2_job_discovery.html */}
+            <div style={{ marginTop: 'auto', display: 'flex', gap: '10px', paddingTop: '16px', flexWrap: 'wrap' }}>
               <button
                 onClick={() => onApply(selectedSignal, firstRole)}
                 style={{
-                  height: '42px',
-                  padding: '0 1.5rem',
-                  border: 'none',
+                  height: '44px',
+                  padding: '0 20px',
+                  border: 0,
                   borderRadius: '8px',
-                  backgroundColor: '#2563eb',
-                  color: '#ffffff',
-                  font: '700 0.84rem Inter, sans-serif',
+                  background: '#2563EB',
+                  color: '#FFFFFF',
+                  font: '600 14px Inter, sans-serif',
                   cursor: 'pointer',
-                  boxShadow: '0 4px 14px rgba(37, 99, 235, 0.4)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.45rem',
+                  gap: '6px',
+                  boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
                 }}
               >
                 <Sparkles size={14} />
@@ -282,17 +245,17 @@ export const JobDiscoveryView: React.FC<JobDiscoveryViewProps> = ({
               <button
                 onClick={() => handleToggleSave(selectedSignal)}
                 style={{
-                  height: '42px',
-                  padding: '0 1.25rem',
-                  border: savedMap[selectedSignal.id] ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.15)',
+                  height: '44px',
+                  padding: '0 20px',
+                  border: '1px solid #CBD5E1',
                   borderRadius: '8px',
-                  backgroundColor: savedMap[selectedSignal.id] ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
-                  color: savedMap[selectedSignal.id] ? '#38bdf8' : '#f8fafc',
-                  font: '600 0.82rem Inter, sans-serif',
+                  background: savedMap[selectedSignal.id] ? '#EFF6FF' : '#FFFFFF',
+                  color: savedMap[selectedSignal.id] ? '#1D4ED8' : '#0F172A',
+                  font: '600 14px Inter, sans-serif',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.4rem',
+                  gap: '6px',
                 }}
               >
                 {savedMap[selectedSignal.id] ? <Check size={14} /> : <Bookmark size={14} />}
@@ -305,17 +268,18 @@ export const JobDiscoveryView: React.FC<JobDiscoveryViewProps> = ({
                 rel="noopener noreferrer"
                 style={{
                   marginLeft: 'auto',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  color: '#38bdf8',
-                  fontSize: '0.76rem',
+                  height: '44px',
+                  padding: '0 16px',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '8px',
+                  background: '#F8FAFC',
+                  color: '#2563EB',
+                  fontSize: '13px',
                   fontWeight: 600,
                   textDecoration: 'none',
-                  padding: '0 0.85rem',
-                  height: '42px',
-                  borderRadius: '8px',
-                  backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
                 }}
               >
                 <span>Direct Job Portal</span>
@@ -324,7 +288,7 @@ export const JobDiscoveryView: React.FC<JobDiscoveryViewProps> = ({
             </div>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 };

@@ -1,18 +1,16 @@
 :root {
-  --background: #080c16;
-  --foreground: #f1f5f9;
-  --card: #0f172a;
-  --card-hover: #1e293b;
-  --card-border: rgba(255, 255, 255, 0.08);
-  --accent: #38bdf8;
-  --accent-rgb: 56, 189, 248;
-  --accent-glow: rgba(56, 189, 248, 0.25);
-  --success: #10b981;
-  --danger: #f43f5e;
-  --warning: #f59e0b;
-  --muted: #94a3b8;
-  --muted-dark: #64748b;
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --background: #FFFFFF;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-border: #E2E8F0;
+  --primary: #2563EB;
+  --primary-light: #EFF6FF;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+  --success: #047857;
+  --success-bg: #ECFDF5;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 * {
@@ -22,8 +20,8 @@
 }
 
 html, body {
-  color: var(--foreground);
-  background-color: var(--background);
+  color: #0F172A;
+  background-color: #FFFFFF;
   font-family: var(--font-family);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
@@ -40,57 +38,23 @@ button {
   font-family: inherit;
 }
 
-/* Custom Sleek Scrollbar */
+/* Custom Clean Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #080c16;
+  background: #F8FAFC;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #CBD5E1;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
-}
-
-/* Keyframe Animations */
-@keyframes radarScan {
-  0% {
-    transform: translateX(-120px);
-  }
-  100% {
-    transform: translateX(1000px);
-  }
-}
-
-@keyframes pulseRing {
-  0% {
-    r: 6;
-    opacity: 0.8;
-  }
-  70% {
-    r: 24;
-    opacity: 0;
-  }
-  100% {
-    r: 24;
-    opacity: 0;
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
+  background: #94A3B8;
 }
 
 @keyframes fadeIn {
@@ -101,39 +65,5 @@ button {
   to {
     opacity: 1;
     transform: scale(1);
-  }
-}
-
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-@keyframes bounce {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-4px);
-  }
-}
-
-/* Card Hover Elevation */
-.signal-card-hover:hover {
-  transform: translateY(-2px);
-  border-color: rgba(56, 189, 248, 0.4) !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 15px rgba(56, 189, 248, 0.15) !important;
-}
-
-/* Reduced Motion Support */
-@media (prefers-reduced-motion: reduce) {
-  *, ::before, ::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
   }
 }

@@ -1,883 +1,580 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
 import { 
   SignalItem, 
-  SignalStats, 
-  SignalType,
   JobApplication,
   OpenRole 
 } from '../types';
 import { 
   fetchSignals, 
-  fetchStats, 
   INITIAL_MOCK_SIGNALS, 
-  computeLocalStats,
   getStoredApplications,
-  saveApplication,
-  getVerifiedCareerUrl
+  saveApplication
 } from '../lib/api';
-import { GlobalMap } from '../components/GlobalMap';
-import { SignalDrawer } from '../components/SignalDrawer';
-import { AnalyticsRadar } from '../components/AnalyticsRadar';
-import { AIExtractorModal } from '../components/AIExtractorModal';
-import { MobileSyncModal } from '../components/MobileSyncModal';
-import { JobApplicationModal } from '../components/JobApplicationModal';
-import { ApplicationsTrackerModal } from '../components/ApplicationsTrackerModal';
-import { VacancyStatsChart } from '../components/VacancyStatsChart';
-import { RightRailDashboard } from '../components/RightRailDashboard';
-import { JobSearchSidebar, FilterState } from '../components/JobSearchSidebar';
-import { FeaturedJobCards } from '../components/FeaturedJobCards';
 import { JobDiscoveryView } from '../components/JobDiscoveryView';
 import { CandidateProfileView } from '../components/CandidateProfileView';
 import { SkillInsightsView } from '../components/SkillInsightsView';
+import { ApplicationsView } from '../components/ApplicationsView';
+import { SettingsView } from '../components/SettingsView';
+import { JobApplicationModal } from '../components/JobApplicationModal';
 import { 
-  Home, 
-  BarChart3, 
-  TrendingUp, 
-  MessageSquare, 
-  Settings, 
-  Star, 
+  LayoutDashboard, 
+  Compass, 
+  User, 
   Sparkles, 
-  Eye, 
-  Bookmark, 
-  Globe2, 
-  Radio, 
-  Smartphone, 
-  Grid2X2,
-  Briefcase,
-  Layers,
+  FileText, 
+  Settings, 
+  Search,
   ArrowRight,
-  Compass,
-  User,
-  Award
+  Briefcase
 } from 'lucide-react';
 
-export type NavView = 'dashboard' | 'discovery' | 'profile' | 'insights' | 'map' | 'analytics' | 'saved';
+export type NavView = 'dashboard' | 'discovery' | 'profile' | 'insights' | 'applications' | 'settings';
 
 export default function HomePage() {
-  const [signals, setSignals] = useState<SignalItem[]>(INITIAL_MOCK_SIGNALS);
-  const [stats, setStats] = useState<SignalStats>(computeLocalStats(INITIAL_MOCK_SIGNALS));
   const [currentNav, setCurrentNav] = useState<NavView>('dashboard');
-  const [selectedSignal, setSelectedSignal] = useState<SignalItem | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedType, setSelectedType] = useState<string>('all');
-  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
-  const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
+  const [signals, setSignals] = useState<SignalItem[]>(INITIAL_MOCK_SIGNALS);
+  const [applications, setApplications] = useState<JobApplication[]>([]);
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
-  const [isApplicationsModalOpen, setIsApplicationsModalOpen] = useState(false);
   const [signalForApp, setSignalForApp] = useState<SignalItem | null>(null);
   const [selectedRoleForApp, setSelectedRoleForApp] = useState<OpenRole | null>(null);
-  const [applications, setApplications] = useState<JobApplication[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [statToast, setStatToast] = useState<string | null>(null);
 
-  // Active filters from sidebar
-  const [sidebarFilters, setSidebarFilters] = useState<FilterState>({
-    datePosted: 'Anytime',
-    experienceLevel: 'Associate',
-    location: 'Bengaluru, India',
-    jobType: 'Full-Time',
-    workMode: 'Hybrid',
-  });
-
-  // Load signals & stats & saved applications on mount
   useEffect(() => {
     setApplications(getStoredApplications());
 
-    async function loadData() {
-      setIsLoading(true);
+    async function load() {
       try {
-        const [fetchedSignals, fetchedStats] = await Promise.all([
-          fetchSignals(),
-          fetchStats(),
-        ]);
-        if (fetchedSignals && fetchedSignals.length > 0) {
+        const fetched = await fetchSignals();
+        if (fetched && fetched.length > 0) {
           const initialIds = new Set(INITIAL_MOCK_SIGNALS.map((s) => s.id));
           const combined = [...INITIAL_MOCK_SIGNALS];
-          fetchedSignals.forEach((s) => {
+          fetched.forEach((s) => {
             if (!initialIds.has(s.id) && !combined.some((c) => c.title === s.title && c.company_name === s.company_name)) {
               combined.push(s);
             }
           });
           setSignals(combined);
         }
-        if (fetchedStats) {
-          setStats(fetchedStats);
-        }
-      } catch (err) {
-        console.warn('Backend offline, using high-fidelity local intelligence:', err);
-      } finally {
-        setIsLoading(false);
+      } catch (e) {
+        console.warn('Backend signals offline, using verified local signals:', e);
       }
     }
-    loadData();
+    load();
   }, []);
 
-  // Filter signals based on search, type, and sidebar options
-  const filteredSignals = useMemo(() => {
-    return signals.filter((s) => {
-      const matchesType = selectedType === 'all' || s.signal_type === selectedType;
-      const q = searchQuery.toLowerCase().trim();
-      if (q) {
-        const matchesSearch =
-          s.title.toLowerCase().includes(q) ||
-          s.company_name?.toLowerCase().includes(q) ||
-          s.city?.toLowerCase().includes(q) ||
-          s.country?.toLowerCase().includes(q) ||
-          s.summary?.toLowerCase().includes(q) ||
-          (s.open_roles && s.open_roles.some((r) => 
-            r.title.toLowerCase().includes(q) || 
-            r.department?.toLowerCase().includes(q)
-          ));
-        if (!matchesSearch) return false;
-      }
-
-      // Check Location filter if specified
-      if (sidebarFilters.location && sidebarFilters.location !== 'All Locations') {
-        const locTarget = sidebarFilters.location.split(',')[0].toLowerCase().trim();
-        const city = (s.city || '').toLowerCase();
-        const country = (s.country || '').toLowerCase();
-        if (!city.includes(locTarget) && !country.includes(locTarget)) {
-          // Allow remote positions or general jobs
-        }
-      }
-
-      return matchesType;
-    });
-  }, [signals, selectedType, searchQuery, sidebarFilters]);
-
-  // Handle adding an AI extracted signal
-  const handleSignalAdded = (newSignal: SignalItem) => {
-    const updated = [newSignal, ...signals];
-    setSignals(updated);
-    setStats(computeLocalStats(updated));
-    setSelectedSignal(newSignal);
-  };
-
-  // Handle opening real-time application modal
   const handleOpenApply = (signal: SignalItem, role?: OpenRole) => {
     setSignalForApp(signal);
     setSelectedRoleForApp(role || null);
     setIsApplyModalOpen(true);
   };
 
-  // Handle saving a job for later
-  const handleSaveJob = (signal: SignalItem) => {
-    const existing = getStoredApplications();
-    const alreadySaved = existing.some((a) => a.signal_id === signal.id);
-    if (!alreadySaved) {
-      const newApp: JobApplication = {
-        id: `saved-${Date.now()}`,
-        signal_id: signal.id,
-        role_title: signal.open_roles?.[0]?.title || signal.title,
-        company_name: signal.company_name || 'Enterprise Partner',
-        applicant_name: 'Alex Lindqvist',
-        applicant_email: 'alex.lindqvist@university.edu',
-        status: 'Submitted',
-        submitted_at: new Date().toISOString(),
-      };
-      saveApplication(newApp);
-      setApplications(getStoredApplications());
-    }
+  const handleApplicationSubmitted = (newApp: JobApplication) => {
+    setApplications((prev) => [newApp, ...prev.filter((a) => a.id !== newApp.id)]);
   };
 
-  // Handle application completion
-  const handleApplicationSubmitted = (newApp: JobApplication) => {
-    setApplications((prev) => [newApp, ...prev]);
-  };
+  // Curated list for the PDF Dashboard "Recommended for you" section
+  const recommendedJobs = [
+    {
+      title: 'Product Analyst',
+      company: 'Northwind Labs',
+      location: 'Remote',
+      matchPct: 92,
+      signal: signals.find((s) => s.company_name?.includes('Northwind')) || signals[0],
+    },
+    {
+      title: 'Data Engineer II',
+      company: 'Brightpath',
+      location: 'Hybrid',
+      matchPct: 88,
+      signal: signals.find((s) => s.company_name?.includes('Brightpath')) || signals[1] || signals[0],
+    },
+    {
+      title: 'UX Researcher',
+      company: 'Kestrel',
+      location: 'On-site',
+      matchPct: 74,
+      signal: signals.find((s) => s.company_name?.includes('Kestrel')) || signals[2] || signals[0],
+    },
+    {
+      title: 'Software Systems Analyst',
+      company: 'Microsoft',
+      location: 'Hyderabad, India (Hybrid)',
+      matchPct: 96,
+      signal: signals.find((s) => s.company_name?.includes('Microsoft')) || signals[0],
+    },
+    {
+      title: 'Product Designer',
+      company: 'Adobe',
+      location: 'Bengaluru, India (Remote)',
+      matchPct: 94,
+      signal: signals.find((s) => s.company_name?.includes('Adobe')) || signals[1] || signals[0],
+    },
+  ];
 
   return (
     <div style={{
+      width: '100%',
       minHeight: '100vh',
-      backgroundColor: '#0e0e13',
-      backgroundImage: `
-        radial-gradient(ellipse at 85% 15%, rgba(88, 28, 135, 0.16) 0%, transparent 55%),
-        radial-gradient(ellipse at 15% 85%, rgba(30, 58, 138, 0.14) 0%, transparent 55%)
-      `,
+      boxSizing: 'border-box',
       display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '1.5rem',
-      color: '#f8fafc',
-      fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      backgroundColor: '#FFFFFF',
+      fontFamily: 'Inter, Helvetica, Arial, sans-serif',
+      color: '#0F172A',
     }}>
-      {/* Main High-End Dashboard Card Shell */}
-      <div style={{
-        width: '100%',
-        maxWidth: '1440px',
-        backgroundColor: '#141518',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        borderRadius: '28px',
-        boxShadow: '0 40px 100px -20px rgba(0, 0, 0, 0.95), 0 0 50px rgba(37, 99, 235, 0.06)',
+      {/* PDF Left Navigation Sidebar (240px) */}
+      <aside style={{
+        width: '240px',
+        borderRight: '1px solid #E2E8F0',
+        padding: '24px 16px',
+        boxSizing: 'border-box',
         display: 'flex',
-        overflow: 'hidden',
-        minHeight: '840px',
+        flexDirection: 'column',
+        gap: '6px',
+        backgroundColor: '#FFFFFF',
+        position: 'sticky',
+        top: 0,
+        height: '100vh',
+        flexShrink: 0,
       }}>
-        {/* ========================================================= */}
-        {/* 1. LEFT-MOST COMPACT NAVIGATION ICON RAIL (64px)         */}
-        {/* ========================================================= */}
-        <nav style={{
-          width: '64px',
-          backgroundColor: '#111215',
-          borderRight: '1px solid rgba(255, 255, 255, 0.05)',
+        {/* Brand Header */}
+        <div style={{
           display: 'flex',
-          flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '1.5rem 0.5rem',
-          flexShrink: 0,
-          zIndex: 10,
+          gap: '10px',
+          padding: '0 8px 24px',
+          fontWeight: 700,
+          fontSize: '18px',
+          color: '#0F172A',
         }}>
-          {/* Top Brand Grid Logo */}
           <div style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: '6px',
+            backgroundColor: '#2563EB',
+            color: '#FFFFFF',
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
-            gap: '1.5rem',
+            justifyContent: 'center',
+            fontSize: '13px',
+            fontWeight: 800,
           }}>
-            <button
-              onClick={() => setCurrentNav('dashboard')}
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#38bdf8',
-                cursor: 'pointer',
-              }}
-              title="CareerSignal Executive Dashboard"
-            >
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 4px)',
-                gap: '2.5px',
-              }}>
-                {Array.from({ length: 9 }).map((_, i) => (
-                  <div key={i} style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#38bdf8' }} />
-                ))}
+            CS
+          </div>
+          <span>CareerSignal</span>
+        </div>
+
+        {/* Navigation Links matching CareerSignal.pdf */}
+        <button
+          onClick={() => setCurrentNav('dashboard')}
+          style={{
+            padding: '10px 12px',
+            borderRadius: '8px',
+            border: 'none',
+            background: currentNav === 'dashboard' ? '#EFF6FF' : 'transparent',
+            color: currentNav === 'dashboard' ? '#1D4ED8' : '#475569',
+            fontWeight: currentNav === 'dashboard' ? 600 : 500,
+            fontSize: '14px',
+            textAlign: 'left',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <LayoutDashboard size={16} />
+          <span>Dashboard</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentNav('discovery')}
+          style={{
+            padding: '10px 12px',
+            borderRadius: '8px',
+            border: 'none',
+            background: currentNav === 'discovery' ? '#EFF6FF' : 'transparent',
+            color: currentNav === 'discovery' ? '#1D4ED8' : '#475569',
+            fontWeight: currentNav === 'discovery' ? 600 : 500,
+            fontSize: '14px',
+            textAlign: 'left',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <Compass size={16} />
+          <span>Job Discovery</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentNav('profile')}
+          style={{
+            padding: '10px 12px',
+            borderRadius: '8px',
+            border: 'none',
+            background: currentNav === 'profile' ? '#EFF6FF' : 'transparent',
+            color: currentNav === 'profile' ? '#1D4ED8' : '#475569',
+            fontWeight: currentNav === 'profile' ? 600 : 500,
+            fontSize: '14px',
+            textAlign: 'left',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <User size={16} />
+          <span>Candidate Profile</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentNav('insights')}
+          style={{
+            padding: '10px 12px',
+            borderRadius: '8px',
+            border: 'none',
+            background: currentNav === 'insights' ? '#EFF6FF' : 'transparent',
+            color: currentNav === 'insights' ? '#1D4ED8' : '#475569',
+            fontWeight: currentNav === 'insights' ? 600 : 500,
+            fontSize: '14px',
+            textAlign: 'left',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <Sparkles size={16} />
+          <span>Skill Insights</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentNav('applications')}
+          style={{
+            padding: '10px 12px',
+            borderRadius: '8px',
+            border: 'none',
+            background: currentNav === 'applications' ? '#EFF6FF' : 'transparent',
+            color: currentNav === 'applications' ? '#1D4ED8' : '#475569',
+            fontWeight: currentNav === 'applications' ? 600 : 500,
+            fontSize: '14px',
+            textAlign: 'left',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <FileText size={16} />
+          <span>Applications</span>
+        </button>
+
+        <button
+          onClick={() => setCurrentNav('settings')}
+          style={{
+            padding: '10px 12px',
+            borderRadius: '8px',
+            border: 'none',
+            background: currentNav === 'settings' ? '#EFF6FF' : 'transparent',
+            color: currentNav === 'settings' ? '#1D4ED8' : '#475569',
+            fontWeight: currentNav === 'settings' ? 600 : 500,
+            fontSize: '14px',
+            textAlign: 'left',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            marginTop: 'auto',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <Settings size={16} />
+          <span>Settings</span>
+        </button>
+      </aside>
+
+      {/* Main View Container */}
+      <main style={{
+        flex: 1,
+        padding: '32px 40px',
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px',
+        overflowY: 'auto',
+        backgroundColor: '#FFFFFF',
+      }}>
+        {/* Render View based on currentNav */}
+        {currentNav === 'dashboard' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Header matching 1_dashboard.html */}
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 700, color: '#0F172A' }}>
+                  Good morning, Alex
+                </h1>
+                <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#475569' }}>
+                  Here is where your job search stands this week.
+                </p>
               </div>
-            </button>
-
-            {/* Navigation Buttons Stack */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '0.9rem',
-            }}>
-              {/* Home / Dashboard */}
-              <button
-                onClick={() => setCurrentNav('dashboard')}
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  backgroundColor: currentNav === 'dashboard' ? '#2563eb' : 'transparent',
-                  color: currentNav === 'dashboard' ? '#ffffff' : '#64748b',
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  boxShadow: currentNav === 'dashboard' ? '0 0 16px rgba(37, 99, 235, 0.5)' : 'none',
-                  transition: 'all 0.15s ease',
-                }}
-                title="Dashboard View (Executive UI)"
-              >
-                <Home size={18} />
-              </button>
-
-              {/* Job Discovery */}
               <button
                 onClick={() => setCurrentNav('discovery')}
                 style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  backgroundColor: currentNav === 'discovery' ? '#2563eb' : 'transparent',
-                  color: currentNav === 'discovery' ? '#ffffff' : '#64748b',
-                  border: 'none',
+                  height: '40px',
+                  padding: '0 16px',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: '8px',
+                  background: '#FFFFFF',
+                  color: '#334155',
+                  font: '500 14px Inter, sans-serif',
+                  cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  boxShadow: currentNav === 'discovery' ? '0 0 16px rgba(37, 99, 235, 0.5)' : 'none',
-                  transition: 'all 0.15s ease',
+                  gap: '8px',
                 }}
-                title="Job Discovery View (PDF Match)"
               >
-                <Compass size={18} />
+                <Search size={15} />
+                <span>Search roles</span>
               </button>
+            </header>
 
-              {/* Candidate Profile */}
-              <button
-                onClick={() => setCurrentNav('profile')}
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  backgroundColor: currentNav === 'profile' ? '#2563eb' : 'transparent',
-                  color: currentNav === 'profile' ? '#ffffff' : '#64748b',
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  boxShadow: currentNav === 'profile' ? '0 0 16px rgba(37, 99, 235, 0.5)' : 'none',
-                  transition: 'all 0.15s ease',
-                }}
-                title="Candidate Profile View (PDF Match)"
-              >
-                <User size={18} />
-              </button>
-
-              {/* Skill Insights */}
-              <button
-                onClick={() => setCurrentNav('insights')}
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  backgroundColor: currentNav === 'insights' ? '#2563eb' : 'transparent',
-                  color: currentNav === 'insights' ? '#ffffff' : '#64748b',
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  boxShadow: currentNav === 'insights' ? '0 0 16px rgba(37, 99, 235, 0.5)' : 'none',
-                  transition: 'all 0.15s ease',
-                }}
-                title="Skill Insights View (PDF Match)"
-              >
-                <Award size={18} />
-              </button>
-
-              {/* Analytics / Bar Chart */}
-              <button
-                onClick={() => setCurrentNav(currentNav === 'analytics' ? 'dashboard' : 'analytics')}
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  backgroundColor: currentNav === 'analytics' ? '#2563eb' : 'transparent',
-                  color: currentNav === 'analytics' ? '#ffffff' : '#64748b',
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-                title="Labor Market Analytics Radar"
-              >
-                <BarChart3 size={18} />
-              </button>
-
-              {/* Global Cyber World Map / Trending */}
-              <button
-                onClick={() => setCurrentNav(currentNav === 'map' ? 'dashboard' : 'map')}
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  backgroundColor: currentNav === 'map' ? '#2563eb' : 'transparent',
-                  color: currentNav === 'map' ? '#ffffff' : '#64748b',
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-                title="Global Radar Map"
-              >
-                <TrendingUp size={18} />
-              </button>
-
-              {/* Settings */}
-              <button
-                onClick={() => setIsMobileModalOpen(true)}
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  backgroundColor: 'transparent',
-                  color: '#64748b',
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-                title="Settings & Mobile Companion"
-              >
-                <Settings size={18} />
-              </button>
-
-              {/* Saved Applications / Favorites */}
-              <button
-                onClick={() => setIsApplicationsModalOpen(true)}
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  backgroundColor: 'transparent',
-                  color: '#64748b',
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-                title="Saved Applications Tracker"
-              >
-                <Star size={18} />
-              </button>
-            </div>
-          </div>
-
-          {/* Bottom AI Ingest Button */}
-          <button
-            onClick={() => setIsAiModalOpen(true)}
-            style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '50%',
-              backgroundColor: 'rgba(56, 189, 248, 0.12)',
-              border: '1px solid rgba(56, 189, 248, 0.35)',
-              color: '#38bdf8',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
-            title="AI Ingest Press Wire"
-          >
-            <Sparkles size={16} />
-          </button>
-        </nav>
-
-        {/* ========================================================= */}
-        {/* 2. INNER DASHBOARD BODY (3 SECTIONS: LEFT, CENTER, RIGHT) */}
-        {/* ========================================================= */}
-        <div style={{
-          display: 'flex',
-          flex: 1,
-          padding: '1.4rem 1.6rem',
-          gap: '1.5rem',
-          overflowX: 'auto',
-        }}>
-          {/* ----------------------------------------------------- */}
-          {/* COLUMN 2: JOB SEARCH & FILTER SIDEBAR (265px)         */}
-          {/* ----------------------------------------------------- */}
-          <JobSearchSidebar
-            searchQuery={searchQuery}
-            onSearchChange={(q) => setSearchQuery(q)}
-            onSelectCompany={(c) => setSearchQuery(c)}
-            onSelectRoleFilter={(r) => setSearchQuery(r)}
-            onFiltersChange={(f) => setSidebarFilters(f)}
-            onOpenProModal={() => setIsMobileModalOpen(true)}
-          />
-
-          {/* ----------------------------------------------------- */}
-          {/* COLUMN 3: CENTER MAIN CONTENT (METRICS, CHART, CARDS) */}
-          {/* ----------------------------------------------------- */}
-          <main style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1.15rem',
-            flex: 1,
-            minWidth: '540px',
-          }}>
-            {/* Top Navigation Pill Strip (Matching PDF Views) */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingBottom: '0.65rem',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-              flexWrap: 'wrap',
-              gap: '0.6rem',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => setCurrentNav('dashboard')}
-                  style={{
-                    padding: '0.35rem 0.85rem',
-                    borderRadius: '8px',
-                    border: currentNav === 'dashboard' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
-                    backgroundColor: currentNav === 'dashboard' ? '#2563eb' : 'rgba(255, 255, 255, 0.03)',
-                    color: currentNav === 'dashboard' ? '#ffffff' : '#94a3b8',
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  Dashboard
-                </button>
-
-                <button
-                  onClick={() => setCurrentNav('discovery')}
-                  style={{
-                    padding: '0.35rem 0.85rem',
-                    borderRadius: '8px',
-                    border: currentNav === 'discovery' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
-                    backgroundColor: currentNav === 'discovery' ? '#2563eb' : 'rgba(255, 255, 255, 0.03)',
-                    color: currentNav === 'discovery' ? '#ffffff' : '#94a3b8',
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  Job Discovery
-                </button>
-
-                <button
-                  onClick={() => setCurrentNav('profile')}
-                  style={{
-                    padding: '0.35rem 0.85rem',
-                    borderRadius: '8px',
-                    border: currentNav === 'profile' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
-                    backgroundColor: currentNav === 'profile' ? '#2563eb' : 'rgba(255, 255, 255, 0.03)',
-                    color: currentNav === 'profile' ? '#ffffff' : '#94a3b8',
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  Candidate Profile
-                </button>
-
-                <button
-                  onClick={() => setCurrentNav('insights')}
-                  style={{
-                    padding: '0.35rem 0.85rem',
-                    borderRadius: '8px',
-                    border: currentNav === 'insights' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
-                    backgroundColor: currentNav === 'insights' ? '#2563eb' : 'rgba(255, 255, 255, 0.03)',
-                    color: currentNav === 'insights' ? '#ffffff' : '#94a3b8',
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  Skill Insights
-                </button>
-
-                <button
-                  onClick={() => setCurrentNav('map')}
-                  style={{
-                    padding: '0.35rem 0.85rem',
-                    borderRadius: '8px',
-                    border: currentNav === 'map' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
-                    backgroundColor: currentNav === 'map' ? '#2563eb' : 'rgba(255, 255, 255, 0.03)',
-                    color: currentNav === 'map' ? '#ffffff' : '#94a3b8',
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  Global Radar
-                </button>
-
-                <button
-                  onClick={() => setCurrentNav('analytics')}
-                  style={{
-                    padding: '0.35rem 0.85rem',
-                    borderRadius: '8px',
-                    border: currentNav === 'analytics' ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
-                    backgroundColor: currentNav === 'analytics' ? '#2563eb' : 'rgba(255, 255, 255, 0.03)',
-                    color: currentNav === 'analytics' ? '#ffffff' : '#94a3b8',
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  Labor Analytics
-                </button>
+            {/* 4 Stats Cards matching 1_dashboard.html */}
+            <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+              <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '20px', background: '#FFFFFF' }}>
+                <div style={{ fontSize: '13px', color: '#64748B' }}>Profile strength</div>
+                <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '8px', color: '#0F172A' }}>82%</div>
               </div>
-
-              <div style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 600 }}>
-                Verified Corporate Gateway
+              <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '20px', background: '#FFFFFF' }}>
+                <div style={{ fontSize: '13px', color: '#64748B' }}>Active applications</div>
+                <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '8px', color: '#0F172A' }}>{applications.length || 14}</div>
               </div>
-            </div>
+              <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '20px', background: '#FFFFFF' }}>
+                <div style={{ fontSize: '13px', color: '#64748B' }}>Interviews scheduled</div>
+                <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '8px', color: '#0F172A' }}>3</div>
+              </div>
+              <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', padding: '20px', background: '#FFFFFF' }}>
+                <div style={{ fontSize: '13px', color: '#64748B' }}>Skill matches this week</div>
+                <div style={{ fontSize: '28px', fontWeight: 700, marginTop: '8px', color: '#0F172A' }}>27</div>
+              </div>
+            </section>
 
-            {/* Notification Toast if clicked */}
-            {statToast && (
+            {/* 2-Column Split: Recommended for you + Upcoming & Activity */}
+            <section style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '16px', flex: 1 }}>
+              {/* Left Column: Recommended for you */}
               <div style={{
-                backgroundColor: 'rgba(56, 189, 248, 0.15)',
-                border: '1px solid rgba(56, 189, 248, 0.4)',
-                borderRadius: '8px',
-                padding: '0.45rem 0.85rem',
-                fontSize: '0.74rem',
-                color: '#38bdf8',
+                border: '1px solid #E2E8F0',
+                borderRadius: '12px',
+                padding: '20px',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                flexDirection: 'column',
+                gap: '14px',
+                background: '#FFFFFF',
               }}>
-                <span>{statToast}</span>
-                <button
-                  onClick={() => setStatToast(null)}
-                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0 }}
-                >
-                  ×
-                </button>
-              </div>
-            )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontWeight: 600, fontSize: '16px', color: '#0F172A' }}>
+                    Recommended for you
+                  </div>
+                  <button
+                    onClick={() => setCurrentNav('discovery')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#2563EB',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <span>View all</span>
+                    <ArrowRight size={13} />
+                  </button>
+                </div>
 
-            {/* Conditional Views: Dashboard VS Job Discovery VS Candidate Profile VS Skill Insights VS Global Map VS Analytics */}
-            {currentNav === 'discovery' ? (
-              <JobDiscoveryView
-                signals={filteredSignals}
-                onApply={(sig, role) => handleOpenApply(sig, role)}
-                onSaveJob={(sig) => handleSaveJob(sig)}
-              />
-            ) : currentNav === 'profile' ? (
-              <CandidateProfileView />
-            ) : currentNav === 'insights' ? (
-              <SkillInsightsView />
-            ) : currentNav === 'map' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <Globe2 size={16} style={{ color: '#38bdf8' }} />
-                    <span>Global Cyber World Map Radar</span>
-                  </h3>
-                  <button
-                    onClick={() => setCurrentNav('dashboard')}
-                    style={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      color: '#cbd5e1',
-                      borderRadius: '6px',
-                      padding: '0.3rem 0.75rem',
-                      fontSize: '0.74rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    ← Back to Dashboard
-                  </button>
-                </div>
-                <GlobalMap
-                  signals={filteredSignals}
-                  selectedSignalId={selectedSignal?.id}
-                  onSelectSignal={(sig) => setSelectedSignal(sig)}
-                  onApplySignal={(sig) => handleOpenApply(sig)}
-                />
+                {recommendedJobs.map((job, idx) => {
+                  const isHighMatch = job.matchPct >= 80;
+                  return (
+                    <div
+                      key={job.title + idx}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '12px 0',
+                        borderBottom: idx < recommendedJobs.length - 1 ? '1px solid #F1F5F9' : 'none',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '14px', color: '#0F172A' }}>
+                          {job.title}
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+                          {job.company} · {job.location}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{
+                          fontSize: '12px',
+                          color: isHighMatch ? '#047857' : '#334155',
+                          background: isHighMatch ? '#ECFDF5' : '#F1F5F9',
+                          padding: '4px 10px',
+                          borderRadius: '999px',
+                          fontWeight: 500,
+                        }}>
+                          {job.matchPct}% match
+                        </span>
+
+                        <button
+                          onClick={() => handleOpenApply(job.signal)}
+                          style={{
+                            padding: '6px 14px',
+                            borderRadius: '6px',
+                            border: '1px solid #CBD5E1',
+                            background: '#FFFFFF',
+                            color: '#0F172A',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#2563EB';
+                            e.currentTarget.style.color = '#FFFFFF';
+                            e.currentTarget.style.borderColor = '#2563EB';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#FFFFFF';
+                            e.currentTarget.style.color = '#0F172A';
+                            e.currentTarget.style.borderColor = '#CBD5E1';
+                          }}
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ) : currentNav === 'analytics' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <BarChart3 size={16} style={{ color: '#38bdf8' }} />
-                    <span>Labor Market Analytics & Distribution</span>
-                  </h3>
-                  <button
-                    onClick={() => setCurrentNav('dashboard')}
-                    style={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      color: '#cbd5e1',
-                      borderRadius: '6px',
-                      padding: '0.3rem 0.75rem',
-                      fontSize: '0.74rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    ← Back to Dashboard
-                  </button>
+
+              {/* Right Column: Upcoming Milestones + Weekly Activity */}
+              <div style={{
+                border: '1px solid #E2E8F0',
+                borderRadius: '12px',
+                padding: '20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+                background: '#FFFFFF',
+              }}>
+                <div style={{ fontWeight: 600, fontSize: '16px', color: '#0F172A' }}>
+                  Upcoming
                 </div>
-                <AnalyticsRadar stats={stats} signals={signals} />
-              </div>
-            ) : (
-              /* DEFAULT: EXECUTIVE DASHBOARD MATCHING USER REFERENCE IMAGE & PDF */
-              <>
-                {/* 3 Pastel Stat Cards Grid */}
                 <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: '1rem',
+                  fontSize: '14px',
+                  padding: '10px 12px',
+                  borderLeft: '3px solid #2563EB',
+                  background: '#F8FAFC',
+                  borderRadius: '0 6px 6px 0',
+                  color: '#0F172A',
                 }}>
-                  {/* 1. Lavender: Profile Views */}
-                  <div 
-                    onClick={() => {
-                      setStatToast('1,957 recruiter impressions across Microsoft, Adobe, NVIDIA, and Google DeepMind this week.');
-                    }}
-                    style={{
-                      backgroundColor: '#dbe4ff',
-                      borderRadius: '16px',
-                      padding: '1.15rem 1.25rem',
-                      color: '#0f172a',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      minHeight: '105px',
-                      boxShadow: '0 4px 15px rgba(219, 228, 255, 0.15)',
-                      cursor: 'pointer',
-                      transition: 'transform 0.15s ease',
-                    }}
-                    title="Click for recruiter impressions breakdown"
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1e293b' }}>
-                        Profile Views
-                      </span>
-                      <Eye size={16} style={{ color: '#1e293b' }} />
-                    </div>
-                    <div style={{ fontSize: '1.85rem', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1 }}>
-                      1957
-                    </div>
-                  </div>
-
-                  {/* 2. Soft Butter Yellow: Ideal Matches */}
-                  <div 
-                    onClick={() => {
-                      setCurrentNav('discovery');
-                    }}
-                    style={{
-                      backgroundColor: '#fef08a',
-                      borderRadius: '16px',
-                      padding: '1.15rem 1.25rem',
-                      color: '#0f172a',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      minHeight: '105px',
-                      boxShadow: '0 4px 15px rgba(254, 240, 138, 0.15)',
-                      cursor: 'pointer',
-                      transition: 'transform 0.15s ease',
-                    }}
-                    title="Click to view 56 Ideal Matches in Job Discovery"
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1e293b' }}>
-                        Ideal Matches
-                      </span>
-                      <Star size={16} style={{ color: '#1e293b' }} />
-                    </div>
-                    <div style={{ fontSize: '1.85rem', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1 }}>
-                      56
-                    </div>
-                  </div>
-
-                  {/* 3. Soft Blush Pink: Saved */}
-                  <div 
-                    onClick={() => setIsApplicationsModalOpen(true)}
-                    style={{
-                      backgroundColor: '#fecdd3',
-                      borderRadius: '16px',
-                      padding: '1.15rem 1.25rem',
-                      color: '#0f172a',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      minHeight: '105px',
-                      boxShadow: '0 4px 15px rgba(254, 205, 211, 0.15)',
-                      cursor: 'pointer',
-                      transition: 'transform 0.15s ease',
-                    }}
-                    title="Click to open Saved Applications Tracker"
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1e293b' }}>
-                        Saved
-                      </span>
-                      <Bookmark size={16} style={{ color: '#1e293b' }} />
-                    </div>
-                    <div style={{ fontSize: '1.85rem', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1 }}>
-                      {String(Math.max(7, applications.length)).padStart(2, '0')}
-                    </div>
-                  </div>
+                  Interview with Northwind Labs · Thu 2:00 PM
+                </div>
+                <div style={{
+                  fontSize: '14px',
+                  padding: '10px 12px',
+                  borderLeft: '3px solid #94A3B8',
+                  background: '#F8FAFC',
+                  borderRadius: '0 6px 6px 0',
+                  color: '#0F172A',
+                }}>
+                  Follow up: Brightpath recruiter · Fri
+                </div>
+                <div style={{
+                  fontSize: '14px',
+                  padding: '10px 12px',
+                  borderLeft: '3px solid #94A3B8',
+                  background: '#F8FAFC',
+                  borderRadius: '0 6px 6px 0',
+                  color: '#0F172A',
+                }}>
+                  Skill assessment: SQL · Mon
                 </div>
 
-                {/* Vacancy Stats Chart Card */}
-                <VacancyStatsChart />
+                {/* Weekly Activity Bar Chart matching 1_dashboard.html */}
+                <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px', marginTop: 'auto' }}>
+                  <div style={{ fontWeight: 600, fontSize: '14px', color: '#0F172A' }}>
+                    Weekly activity
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', height: '110px' }}>
+                    <div title="Mon: 45%" style={{ flex: 1, height: '45%', background: '#BFDBFE', borderRadius: '4px 4px 0 0' }} />
+                    <div title="Tue: 70%" style={{ flex: 1, height: '70%', background: '#BFDBFE', borderRadius: '4px 4px 0 0' }} />
+                    <div title="Wed: 55%" style={{ flex: 1, height: '55%', background: '#BFDBFE', borderRadius: '4px 4px 0 0' }} />
+                    <div title="Thu: 90%" style={{ flex: 1, height: '90%', background: '#2563EB', borderRadius: '4px 4px 0 0' }} />
+                    <div title="Fri: 65%" style={{ flex: 1, height: '65%', background: '#BFDBFE', borderRadius: '4px 4px 0 0' }} />
+                    <div title="Sat: 35%" style={{ flex: 1, height: '35%', background: '#BFDBFE', borderRadius: '4px 4px 0 0' }} />
+                    <div title="Sun: 50%" style={{ flex: 1, height: '50%', background: '#BFDBFE', borderRadius: '4px 4px 0 0' }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748B' }}>
+                    <span>Mon</span>
+                    <span>Tue</span>
+                    <span>Wed</span>
+                    <span>Thu</span>
+                    <span>Fri</span>
+                    <span>Sat</span>
+                    <span>Sun</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
 
-                {/* Featured Active Opportunities (Microsoft & Adobe Cards) */}
-                <FeaturedJobCards
-                  signals={filteredSignals}
-                  onApply={(sig, role) => handleOpenApply(sig, role)}
-                  onSaveJob={(sig) => handleSaveJob(sig)}
-                  onSelectSignal={(sig) => setSelectedSignal(sig)}
-                />
-              </>
-            )}
-          </main>
+        {currentNav === 'discovery' && (
+          <JobDiscoveryView
+            signals={signals}
+            onApply={handleOpenApply}
+          />
+        )}
 
-          {/* ----------------------------------------------------- */}
-          {/* COLUMN 4: RIGHT-SIDEBAR (TOP BAR, CALENDAR, NETWORKING, MESSAGES) */}
-          {/* ----------------------------------------------------- */}
-          <RightRailDashboard applications={applications} />
-        </div>
-      </div>
+        {currentNav === 'profile' && (
+          <CandidateProfileView />
+        )}
 
-      {/* ========================================================= */}
-      {/* 3. OPERATIONAL MODALS & DRAWERS                          */}
-      {/* ========================================================= */}
+        {currentNav === 'insights' && (
+          <SkillInsightsView />
+        )}
 
-      {/* Signal Details Drawer */}
-      <SignalDrawer
-        signal={selectedSignal}
-        onClose={() => setSelectedSignal(null)}
-        onApply={(sig, role) => handleOpenApply(sig, role)}
-      />
+        {currentNav === 'applications' && (
+          <ApplicationsView
+            applications={applications}
+            onApplyNew={() => handleOpenApply(signals[0])}
+          />
+        )}
 
-      {/* Real-Time Job Application Modal */}
-      {signalForApp && (
+        {currentNav === 'settings' && (
+          <SettingsView />
+        )}
+      </main>
+
+      {/* Global Interactive Modal */}
+      {isApplyModalOpen && signalForApp && (
         <JobApplicationModal
+          isOpen={isApplyModalOpen}
+          onClose={() => setIsApplyModalOpen(false)}
           signal={signalForApp}
           selectedRole={selectedRoleForApp}
-          isOpen={isApplyModalOpen}
-          onClose={() => {
-            setIsApplyModalOpen(false);
-            setSignalForApp(null);
-            setSelectedRoleForApp(null);
-          }}
           onApplicationSubmitted={handleApplicationSubmitted}
         />
       )}
-
-      {/* Applications Tracker Dashboard Modal */}
-      <ApplicationsTrackerModal
-        isOpen={isApplicationsModalOpen}
-        onClose={() => setIsApplicationsModalOpen(false)}
-        applications={applications}
-        onApplyNew={() => {
-          setIsApplicationsModalOpen(false);
-          if (signals.length > 0) handleOpenApply(signals[0]);
-        }}
-      />
-
-      {/* AI Ingest Modal */}
-      <AIExtractorModal
-        isOpen={isAiModalOpen}
-        onClose={() => setIsAiModalOpen(false)}
-        onSignalAdded={handleSignalAdded}
-      />
-
-      {/* Mobile Sync / Settings Modal */}
-      <MobileSyncModal
-        isOpen={isMobileModalOpen}
-        onClose={() => setIsMobileModalOpen(false)}
-      />
     </div>
   );
 }

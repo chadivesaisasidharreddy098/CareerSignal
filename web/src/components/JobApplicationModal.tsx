@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SignalItem, OpenRole, JobApplication, CandidateType, AcceptanceDetails } from '../types';
 import { 
-  getVerifiedCareerUrl, 
   getDirectJobPortalUrl, 
   saveApplication,
   POPULAR_INSTITUTES,
@@ -16,20 +15,10 @@ import {
 import { 
   X, 
   Send, 
-  CheckCircle2, 
-  MapPin, 
-  Briefcase, 
-  DollarSign, 
-  User, 
-  Mail, 
-  Linkedin, 
-  FileText, 
   UploadCloud, 
   Sparkles, 
   GraduationCap, 
-  Building2, 
-  Calendar, 
-  Clock, 
+  Briefcase, 
   ShieldCheck, 
   Award, 
   ExternalLink,
@@ -37,9 +26,11 @@ import {
   Check,
   Download,
   Plus,
-  Search,
   CheckCircle,
-  FileCheck
+  Calendar,
+  Clock,
+  User,
+  Mail
 } from 'lucide-react';
 
 interface JobApplicationModalProps {
@@ -59,7 +50,7 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
 }) => {
   const [candidateType, setCandidateType] = useState<CandidateType>('Student / Fresher');
 
-  // Common Contact Info
+  // Contact Info
   const [fullName, setFullName] = useState('Alex Lindqvist');
   const [email, setEmail] = useState('alex.lindqvist@university.edu');
   const [phone, setPhone] = useState('+91 98765 43210');
@@ -100,13 +91,13 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const roleTitle = selectedRole?.title || signal?.title || 'Open Position';
+  const roleTitle = selectedRole?.title || signal?.title?.split('-')[0].trim() || 'Open Position';
   const roleDepartment = selectedRole?.department || signal?.department || 'Technology';
-  const roleLocation = selectedRole?.location || (signal?.city ? `${signal.city}, ${signal.country}` : signal?.country || 'Global');
+  const roleLocation = selectedRole?.location || (signal?.city ? `${signal.city}, ${signal.country}` : signal?.country || 'Remote / Hybrid');
   const roleSalary = selectedRole?.salary_range || signal?.salary_range || 'Competitive Package';
   const directPortalUrl = signal ? getDirectJobPortalUrl(signal.company_name, roleTitle, signal.careers_url || signal.source_url) : '#';
 
-  // Automatically adapt skills and resume filename whenever the job / role changes
+  // Automatically adapt skills and resume filename whenever the role/signal changes
   useEffect(() => {
     if (signal) {
       const skills = getSkillsForRole(roleTitle, signal.company_name, roleDepartment);
@@ -116,7 +107,6 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
       const cleanName = (fullName || 'Candidate').replace(/\s+/g, '_');
       setResumeName(`${cleanName}_${cleanRole}_Resume.pdf`);
 
-      // Adaptive motivation note
       setCoverNote(
         `Passionate about joining ${signal.company_name} as a ${roleTitle}. My background in ${skills.slice(0, 3).join(', ')} directly aligns with this team's roadmap and objectives.`
       );
@@ -125,7 +115,7 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
 
   if (!isOpen || !signal) return null;
 
-  // Filter institutes based on input
+  // Filter institutes based on query
   const filteredInstitutes = POPULAR_INSTITUTES.filter((inst) => {
     const q = (instituteSearch || university).toLowerCase().trim();
     if (!q) return true;
@@ -136,7 +126,7 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
     );
   });
 
-  // Filter companies based on input
+  // Filter companies based on query
   const filteredCompanies = POPULAR_COMPANIES.filter((comp) => {
     const q = (companySearch || currentCompany).toLowerCase().trim();
     if (!q) return true;
@@ -147,7 +137,6 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
     );
   });
 
-  // Selecting an institute from autocomplete
   const handleSelectInstitute = (inst: InstituteInfo) => {
     setUniversity(inst.name);
     setDegree(inst.defaultDegree);
@@ -155,7 +144,6 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
     setShowInstituteDropdown(false);
   };
 
-  // Selecting a company from autocomplete
   const handleSelectCompany = (comp: CompanyInfo) => {
     setCurrentCompany(comp.name);
     setCurrentTitle(comp.suggestedTitle);
@@ -163,12 +151,10 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
     setShowCompanyDropdown(false);
   };
 
-  // Handle skill removal
   const handleRemoveSkill = (skillToRemove: string) => {
     setMatchedSkills((prev) => prev.filter((s) => s !== skillToRemove));
   };
 
-  // Handle adding custom skill
   const handleAddCustomSkill = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const trimmed = newSkillInput.trim();
@@ -179,14 +165,12 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
     }
   };
 
-  // Handle clicking a suggested skill badge
   const handleAddSuggestedSkill = (skill: string) => {
     if (!matchedSkills.includes(skill)) {
       setMatchedSkills((prev) => [...prev, skill]);
     }
   };
 
-  // Handle simulated/real file upload with ATS scanning
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -195,33 +179,22 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
       setTimeout(() => {
         setIsUploading(false);
         setUploadSuccess(true);
-        // Guarantee refreshed role skills verified
         const refreshedSkills = getSkillsForRole(roleTitle, signal.company_name, roleDepartment);
         setMatchedSkills(Array.from(new Set([...refreshedSkills, ...matchedSkills])));
         setTimeout(() => setUploadSuccess(false), 3000);
-      }, 900);
+      }, 800);
     }
   };
 
-  // Recruiter info
   const getRecruiterInfo = () => {
     const comp = (signal.company_name || '').toLowerCase();
-    if (comp.includes('microsoft')) {
-      return { name: 'David Jose', title: 'Lead Systems & Design Recruiter' };
-    }
-    if (comp.includes('adobe')) {
-      return { name: 'Ishitha Xavier', title: 'Senior Talent Acquisition Partner' };
-    }
-    if (comp.includes('nvidia')) {
-      return { name: 'Hansika Khan', title: 'Director of Silicon & AI Talent' };
-    }
-    if (comp.includes('google') || comp.includes('deepmind')) {
-      return { name: 'Dr. Marcus Vance', title: 'Principal Research Talent Director' };
-    }
+    if (comp.includes('microsoft')) return { name: 'David Jose', title: 'Lead Systems & Design Recruiter' };
+    if (comp.includes('adobe')) return { name: 'Ishitha Xavier', title: 'Senior Talent Acquisition Partner' };
+    if (comp.includes('nvidia')) return { name: 'Hansika Khan', title: 'Director of Silicon & AI Talent' };
+    if (comp.includes('google') || comp.includes('deepmind')) return { name: 'Dr. Marcus Vance', title: 'Principal Research Talent Director' };
     return { name: 'Sarah Jenkins', title: 'Principal Talent Acquisition Lead' };
   };
 
-  // Presets
   const loadStudentPreset = () => {
     setCandidateType('Student / Fresher');
     setFullName('Priya Sharma');
@@ -265,7 +238,7 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
 
     setTimeout(() => {
       setEvalStep('Corporate ATS Verification: MATCH CONFIRMED (96% Fit Score)...');
-    }, 850);
+    }, 800);
 
     setTimeout(() => {
       const recruiter = getRecruiterInfo();
@@ -320,7 +293,7 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
       if (onApplicationSubmitted) {
         onApplicationSubmitted(newApp);
       }
-    }, 1350);
+    }, 1250);
   };
 
   const handleDownloadAcceptanceTicket = () => {
@@ -371,58 +344,56 @@ CareerSignal Verified Corporate Recruiting Network
     <div style={{
       position: 'fixed',
       inset: 0,
-      backgroundColor: 'rgba(5, 8, 16, 0.88)',
-      backdropFilter: 'blur(16px)',
+      backgroundColor: 'rgba(15, 23, 42, 0.55)',
+      backdropFilter: 'blur(6px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '1.25rem',
-      zIndex: 150,
-      animation: 'fadeIn 0.2s ease-out',
+      padding: '20px',
+      zIndex: 100,
     }}>
       <div style={{
         width: '100%',
-        maxWidth: '740px',
-        maxHeight: '92vh',
-        backgroundColor: '#12141a',
-        border: '1px solid rgba(56, 189, 248, 0.35)',
-        borderRadius: '20px',
-        boxShadow: '0 30px 80px rgba(0, 0, 0, 0.95), 0 0 50px rgba(37, 99, 235, 0.2)',
+        maxWidth: '720px',
+        maxHeight: '90vh',
+        backgroundColor: '#FFFFFF',
+        border: '1px solid #E2E8F0',
+        borderRadius: '16px',
+        boxShadow: '0 20px 45px rgba(0, 0, 0, 0.12)',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
       }}>
-        {/* Header */}
+        {/* Header matching PDF Clean Executive Style */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '1.1rem 1.5rem',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-          background: 'linear-gradient(90deg, #161822 0%, #1a1e2d 100%)',
+          padding: '16px 24px',
+          borderBottom: '1px solid #E2E8F0',
+          background: '#FFFFFF',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '10px',
-              backgroundColor: '#2563eb',
+              width: '36px',
+              height: '36px',
+              borderRadius: '8px',
+              backgroundColor: '#2563EB',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#ffffff',
-              fontWeight: 800,
-              fontSize: '1rem',
-              boxShadow: '0 0 15px rgba(37, 99, 235, 0.4)',
+              color: '#FFFFFF',
+              fontWeight: 700,
+              fontSize: '15px',
             }}>
               {signal.company_name?.charAt(0) || 'C'}
             </div>
             <div>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f8fafc', margin: 0 }}>
-                {signal.company_name} Job Application Portal
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: 0 }}>
+                Apply to {signal.company_name}
               </h3>
-              <p style={{ fontSize: '0.74rem', color: '#38bdf8', margin: '0.15rem 0 0 0' }}>
-                Open to Students & Working Employees • Role-Adaptive Dynamic Resume & Skills
+              <p style={{ fontSize: '13px', color: '#64748B', margin: '2px 0 0 0' }}>
+                {roleTitle} • Verified ATS Application Pipeline
               </p>
             </div>
           </div>
@@ -432,46 +403,47 @@ CareerSignal Verified Corporate Recruiting Network
             style={{
               background: 'none',
               border: 'none',
-              color: '#94a3b8',
+              color: '#64748B',
               cursor: 'pointer',
-              padding: '0.4rem',
+              padding: '6px',
+              borderRadius: '6px',
             }}
           >
-            <X size={18} />
+            <X size={20} />
           </button>
         </div>
 
-        {/* Scrollable Body */}
+        {/* Scrollable Modal Content */}
         <div style={{
-          padding: '1.25rem 1.5rem',
+          padding: '24px',
           overflowY: 'auto',
           display: 'flex',
           flexDirection: 'column',
-          gap: '1.15rem',
+          gap: '20px',
         }}>
           {!submittedApp ? (
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
-              {/* Target Position Pill */}
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Job Info Banner */}
               <div style={{
-                backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                border: '1px solid rgba(37, 99, 235, 0.3)',
-                borderRadius: '12px',
-                padding: '0.85rem 1.1rem',
+                backgroundColor: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: '10px',
+                padding: '14px 18px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
-                gap: '0.5rem',
+                gap: '8px',
               }}>
                 <div>
-                  <div style={{ fontSize: '0.7rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase' }}>
-                    Applying For Direct Job Position
+                  <div style={{ fontSize: '11px', color: '#2563EB', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Target Role
                   </div>
-                  <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#ffffff' }}>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
                     {roleTitle}
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.15rem' }}>
-                    {roleLocation} • {roleDepartment} • <strong style={{ color: '#34d399' }}>{roleSalary}</strong>
+                  <div style={{ fontSize: '13px', color: '#64748B', marginTop: '2px' }}>
+                    {roleLocation} · {roleDepartment} · <span style={{ color: '#047857', fontWeight: 600 }}>{roleSalary}</span>
                   </div>
                 </div>
 
@@ -483,52 +455,48 @@ CareerSignal Verified Corporate Recruiting Network
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.35rem',
-                    color: '#38bdf8',
-                    fontSize: '0.74rem',
+                    gap: '6px',
+                    color: '#2563EB',
+                    fontSize: '13px',
                     fontWeight: 600,
                     textDecoration: 'none',
-                    padding: '0.35rem 0.65rem',
+                    padding: '6px 12px',
                     borderRadius: '6px',
-                    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                    backgroundColor: '#EFF6FF',
                   }}
                 >
-                  <span>Direct {roleTitle} Portal</span>
-                  <ExternalLink size={12} />
+                  <span>Official Careers Portal</span>
+                  <ExternalLink size={13} />
                 </a>
               </div>
 
-              {/* 1. Candidate Track Selection: Student vs Working Professional */}
+              {/* Applicant Track Selection */}
               <div>
-                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#f1f5f9', display: 'block', marginBottom: '0.45rem' }}>
-                  Select Your Applicant Track:
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', display: 'block', marginBottom: '8px' }}>
+                  Applicant Track
                 </label>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '0.65rem',
-                }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
                   <button
                     type="button"
                     onClick={() => setCandidateType('Student / Fresher')}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.6rem',
-                      padding: '0.65rem 0.9rem',
-                      borderRadius: '10px',
-                      backgroundColor: candidateType === 'Student / Fresher' ? 'rgba(37, 99, 235, 0.22)' : 'rgba(255, 255, 255, 0.03)',
-                      border: candidateType === 'Student / Fresher' ? '1.5px solid #2563eb' : '1px solid rgba(255, 255, 255, 0.08)',
-                      color: candidateType === 'Student / Fresher' ? '#ffffff' : '#94a3b8',
+                      gap: '10px',
+                      padding: '12px 14px',
+                      borderRadius: '8px',
+                      backgroundColor: candidateType === 'Student / Fresher' ? '#EFF6FF' : '#FFFFFF',
+                      border: candidateType === 'Student / Fresher' ? '1.5px solid #2563EB' : '1px solid #CBD5E1',
+                      color: candidateType === 'Student / Fresher' ? '#1D4ED8' : '#475569',
                       cursor: 'pointer',
                       textAlign: 'left',
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <GraduationCap size={18} style={{ color: candidateType === 'Student / Fresher' ? '#38bdf8' : '#64748b' }} />
+                    <GraduationCap size={20} style={{ color: candidateType === 'Student / Fresher' ? '#2563EB' : '#64748B' }} />
                     <div>
-                      <div style={{ fontSize: '0.8rem', fontWeight: 700 }}>Student / Fresher</div>
-                      <div style={{ fontSize: '0.68rem', opacity: 0.8 }}>Graduates, Interns & College Students</div>
+                      <div style={{ fontSize: '14px', fontWeight: 600 }}>Student / Fresher</div>
+                      <div style={{ fontSize: '12px', color: '#64748B' }}>Graduates, Interns & College Students</div>
                     </div>
                   </button>
 
@@ -538,39 +506,40 @@ CareerSignal Verified Corporate Recruiting Network
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.6rem',
-                      padding: '0.65rem 0.9rem',
-                      borderRadius: '10px',
-                      backgroundColor: candidateType === 'Experienced Professional' ? 'rgba(37, 99, 235, 0.22)' : 'rgba(255, 255, 255, 0.03)',
-                      border: candidateType === 'Experienced Professional' ? '1.5px solid #2563eb' : '1px solid rgba(255, 255, 255, 0.08)',
-                      color: candidateType === 'Experienced Professional' ? '#ffffff' : '#94a3b8',
+                      gap: '10px',
+                      padding: '12px 14px',
+                      borderRadius: '8px',
+                      backgroundColor: candidateType === 'Experienced Professional' ? '#EFF6FF' : '#FFFFFF',
+                      border: candidateType === 'Experienced Professional' ? '1.5px solid #2563EB' : '1px solid #CBD5E1',
+                      color: candidateType === 'Experienced Professional' ? '#1D4ED8' : '#475569',
                       cursor: 'pointer',
                       textAlign: 'left',
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <Briefcase size={18} style={{ color: candidateType === 'Experienced Professional' ? '#38bdf8' : '#64748b' }} />
+                    <Briefcase size={20} style={{ color: candidateType === 'Experienced Professional' ? '#2563EB' : '#64748B' }} />
                     <div>
-                      <div style={{ fontSize: '0.8rem', fontWeight: 700 }}>Experienced Employee</div>
-                      <div style={{ fontSize: '0.68rem', opacity: 0.8 }}>Working Professionals & Industry Talent</div>
+                      <div style={{ fontSize: '14px', fontWeight: 600 }}>Experienced Employee</div>
+                      <div style={{ fontSize: '12px', color: '#64748B' }}>Working Professionals & Industry Talent</div>
                     </div>
                   </button>
                 </div>
 
-                {/* Quick 1-Click Auto Fill Profiles */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.55rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Quick Sample Data:</span>
+                {/* Sample Profile Fillers */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '12px', color: '#64748B' }}>Quick Fill:</span>
                   <button
                     type="button"
                     onClick={loadStudentPreset}
                     style={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      backgroundColor: '#F8FAFC',
+                      border: '1px solid #CBD5E1',
                       borderRadius: '6px',
-                      padding: '0.2rem 0.55rem',
-                      fontSize: '0.7rem',
-                      color: '#38bdf8',
+                      padding: '3px 10px',
+                      fontSize: '12px',
+                      color: '#2563EB',
                       cursor: 'pointer',
+                      fontWeight: 500,
                     }}
                   >
                     🎓 Priya (IIT Student)
@@ -579,48 +548,50 @@ CareerSignal Verified Corporate Recruiting Network
                     type="button"
                     onClick={loadEmployeePreset}
                     style={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      backgroundColor: '#F8FAFC',
+                      border: '1px solid #CBD5E1',
                       borderRadius: '6px',
-                      padding: '0.2rem 0.55rem',
-                      fontSize: '0.7rem',
-                      color: '#38bdf8',
+                      padding: '3px 10px',
+                      fontSize: '12px',
+                      color: '#2563EB',
                       cursor: 'pointer',
+                      fontWeight: 500,
                     }}
                   >
-                    💼 Rahul (Experienced Lead)
+                    💼 Rahul (Microsoft Analyst)
                   </button>
                 </div>
               </div>
 
-              {/* 2. Candidate Personal Information */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem' }}>
+              {/* Personal Info Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
                 <div>
-                  <label style={{ fontSize: '0.74rem', fontWeight: 600, color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.35rem' }}>
-                    <User size={12} style={{ color: '#38bdf8' }} /> Full Legal Name *
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                    <User size={14} style={{ color: '#2563EB' }} /> Full Legal Name *
                   </label>
                   <input
                     type="text"
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g., Alex Lindqvist"
+                    placeholder="e.g. Alex Lindqvist"
                     style={{
                       width: '100%',
-                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      boxSizing: 'border-box',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #CBD5E1',
                       borderRadius: '8px',
-                      padding: '0.55rem 0.75rem',
-                      color: '#f8fafc',
-                      fontSize: '0.82rem',
+                      padding: '8px 12px',
+                      color: '#0F172A',
+                      fontSize: '14px',
                       outline: 'none',
                     }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.74rem', fontWeight: 600, color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.35rem' }}>
-                    <Mail size={12} style={{ color: '#38bdf8' }} /> Email Address *
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                    <Mail size={14} style={{ color: '#2563EB' }} /> Email Address *
                   </label>
                   <input
                     type="email"
@@ -630,20 +601,21 @@ CareerSignal Verified Corporate Recruiting Network
                     placeholder="alex.lindqvist@university.edu"
                     style={{
                       width: '100%',
-                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      boxSizing: 'border-box',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #CBD5E1',
                       borderRadius: '8px',
-                      padding: '0.55rem 0.75rem',
-                      color: '#f8fafc',
-                      fontSize: '0.82rem',
+                      padding: '8px 12px',
+                      color: '#0F172A',
+                      fontSize: '14px',
                       outline: 'none',
                     }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.74rem', fontWeight: 600, color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.35rem' }}>
-                    <Phone size={12} style={{ color: '#38bdf8' }} /> Phone Number
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                    <Phone size={14} style={{ color: '#2563EB' }} /> Phone Number
                   </label>
                   <input
                     type="tel"
@@ -652,38 +624,39 @@ CareerSignal Verified Corporate Recruiting Network
                     placeholder="+91 98765 43210"
                     style={{
                       width: '100%',
-                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                      border: '1px solid rgba(255, 255, 255, 0.12)',
+                      boxSizing: 'border-box',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #CBD5E1',
                       borderRadius: '8px',
-                      padding: '0.55rem 0.75rem',
-                      color: '#f8fafc',
-                      fontSize: '0.82rem',
+                      padding: '8px 12px',
+                      color: '#0F172A',
+                      fontSize: '14px',
                       outline: 'none',
                     }}
                   />
                 </div>
               </div>
 
-              {/* 3. Conditional Track Information with AUTO-DISPLAY DROPDOWNS */}
+              {/* Conditional Track Fields with Floating Autocomplete */}
               {candidateType === 'Student / Fresher' ? (
                 <div style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: '12px',
-                  padding: '1rem',
+                  backgroundColor: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '10px',
+                  padding: '16px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.85rem',
+                  gap: '14px',
                 }}>
                   {/* AUTO-DISPLAY INSTITUTE INPUT */}
                   <div style={{ position: 'relative' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                      <label style={{ fontSize: '0.74rem', fontWeight: 600, color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <GraduationCap size={13} style={{ color: '#38bdf8' }} />
-                        University / Institute (Auto-display suggestions as you type) *
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <GraduationCap size={15} style={{ color: '#2563EB' }} />
+                        University / Institute (Auto-display suggestions) *
                       </label>
-                      <span style={{ fontSize: '0.68rem', color: '#38bdf8', fontWeight: 600 }}>
-                        Auto-Completes Degree Major
+                      <span style={{ fontSize: '12px', color: '#2563EB', fontWeight: 500 }}>
+                        Auto-Fills Degree
                       </span>
                     </div>
 
@@ -701,14 +674,14 @@ CareerSignal Verified Corporate Recruiting Network
                         placeholder="Type to auto-display: IIT Bombay, Stanford, MIT, BITS..."
                         style={{
                           width: '100%',
-                          backgroundColor: 'rgba(15, 23, 42, 0.7)',
-                          border: showInstituteDropdown ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.15)',
+                          boxSizing: 'border-box',
+                          backgroundColor: '#FFFFFF',
+                          border: showInstituteDropdown ? '1.5px solid #2563EB' : '1px solid #CBD5E1',
                           borderRadius: '8px',
-                          padding: '0.6rem 0.85rem',
-                          color: '#f8fafc',
-                          fontSize: '0.82rem',
+                          padding: '10px 14px',
+                          color: '#0F172A',
+                          fontSize: '14px',
                           outline: 'none',
-                          boxShadow: showInstituteDropdown ? '0 0 12px rgba(56, 189, 248, 0.25)' : 'none',
                         }}
                       />
 
@@ -722,35 +695,35 @@ CareerSignal Verified Corporate Recruiting Network
                           }}
                           style={{
                             position: 'absolute',
-                            right: '10px',
+                            right: '12px',
                             top: '50%',
                             transform: 'translateY(-50%)',
                             background: 'none',
                             border: 'none',
-                            color: '#64748b',
+                            color: '#94A3B8',
                             cursor: 'pointer',
                           }}
                         >
-                          <X size={14} />
+                          <X size={16} />
                         </button>
                       )}
                     </div>
 
-                    {/* Quick 1-Click Campus Pills */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.68rem', color: '#64748b' }}>Popular:</span>
+                    {/* Quick Campus Pills */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '12px', color: '#64748B' }}>Popular:</span>
                       {POPULAR_INSTITUTES.slice(0, 5).map((inst) => (
                         <button
                           key={inst.shortName}
                           type="button"
                           onClick={() => handleSelectInstitute(inst)}
                           style={{
-                            backgroundColor: university.includes(inst.shortName) ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-                            border: university.includes(inst.shortName) ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
-                            borderRadius: '9999px',
-                            padding: '0.15rem 0.55rem',
-                            fontSize: '0.68rem',
-                            color: university.includes(inst.shortName) ? '#38bdf8' : '#cbd5e1',
+                            backgroundColor: university.includes(inst.shortName) ? '#EFF6FF' : '#FFFFFF',
+                            border: university.includes(inst.shortName) ? '1px solid #2563EB' : '1px solid #CBD5E1',
+                            borderRadius: '999px',
+                            padding: '3px 10px',
+                            fontSize: '12px',
+                            color: university.includes(inst.shortName) ? '#1D4ED8' : '#475569',
                             cursor: 'pointer',
                           }}
                         >
@@ -766,18 +739,18 @@ CareerSignal Verified Corporate Recruiting Network
                         top: '100%',
                         left: 0,
                         right: 0,
-                        marginTop: '0.4rem',
-                        backgroundColor: '#161923',
-                        border: '1px solid rgba(56, 189, 248, 0.4)',
+                        marginTop: '6px',
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid #CBD5E1',
                         borderRadius: '10px',
-                        boxShadow: '0 15px 35px rgba(0, 0, 0, 0.8), 0 0 20px rgba(56, 189, 248, 0.15)',
+                        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
                         zIndex: 60,
                         maxHeight: '220px',
                         overflowY: 'auto',
-                        padding: '0.35rem',
+                        padding: '6px',
                       }}>
-                        <div style={{ padding: '0.35rem 0.6rem', fontSize: '0.68rem', color: '#38bdf8', fontWeight: 700, borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                          AUTOMATIC MATCHES ({filteredInstitutes.length}) — Click to Select & Auto-Fill Degree
+                        <div style={{ padding: '6px 10px', fontSize: '12px', color: '#2563EB', fontWeight: 600, borderBottom: '1px solid #F1F5F9' }}>
+                          MATCHING INSTITUTIONS ({filteredInstitutes.length}) — Click to Select & Auto-Fill Degree
                         </div>
                         {filteredInstitutes.length > 0 ? (
                           filteredInstitutes.map((inst) => (
@@ -785,32 +758,31 @@ CareerSignal Verified Corporate Recruiting Network
                               key={inst.name}
                               onClick={() => handleSelectInstitute(inst)}
                               style={{
-                                padding: '0.55rem 0.75rem',
+                                padding: '8px 12px',
                                 borderRadius: '6px',
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
                                 transition: 'background-color 0.12s ease',
-                                borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
+                                borderBottom: '1px solid #F8FAFC',
                               }}
-                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.12)')}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#EFF6FF')}
                               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                             >
                               <div>
-                                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc' }}>
+                                <div style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A' }}>
                                   {inst.name}
                                 </div>
-                                <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.1rem' }}>
-                                  {inst.location} • <span style={{ color: '#34d399' }}>{inst.defaultDegree}</span>
+                                <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
+                                  {inst.location} · <span style={{ color: '#047857' }}>{inst.defaultDegree}</span>
                                 </div>
                               </div>
                               <span style={{
-                                fontSize: '0.65rem',
-                                color: '#38bdf8',
-                                backgroundColor: 'rgba(56, 189, 248, 0.12)',
-                                border: '1px solid rgba(56, 189, 248, 0.3)',
-                                padding: '0.15rem 0.45rem',
+                                fontSize: '11px',
+                                color: '#2563EB',
+                                backgroundColor: '#EFF6FF',
+                                padding: '3px 8px',
                                 borderRadius: '4px',
                                 fontWeight: 600,
                               }}>
@@ -819,54 +791,56 @@ CareerSignal Verified Corporate Recruiting Network
                             </div>
                           ))
                         ) : (
-                          <div style={{ padding: '0.75rem', fontSize: '0.74rem', color: '#94a3b8', textAlign: 'center' }}>
-                            No matching institutions found. You can continue typing manually.
+                          <div style={{ padding: '12px', fontSize: '13px', color: '#64748B', textAlign: 'center' }}>
+                            No institutions match your search. Continue typing manually.
                           </div>
                         )}
                       </div>
                     )}
                   </div>
 
-                  {/* Degree & Year & CGPA */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+                  {/* Degree & Year */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
                     <div>
-                      <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
+                      <label style={{ fontSize: '12px', color: '#64748B', display: 'block', marginBottom: '4px' }}>
                         Degree & Major
                       </label>
                       <input
                         type="text"
                         value={degree}
                         onChange={(e) => setDegree(e.target.value)}
-                        placeholder="e.g., B.Tech Computer Science"
+                        placeholder="e.g. B.Tech Computer Science"
                         style={{
                           width: '100%',
-                          backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          boxSizing: 'border-box',
+                          backgroundColor: '#FFFFFF',
+                          border: '1px solid #CBD5E1',
                           borderRadius: '6px',
-                          padding: '0.5rem 0.7rem',
-                          color: '#f8fafc',
-                          fontSize: '0.8rem',
+                          padding: '8px 10px',
+                          color: '#0F172A',
+                          fontSize: '13px',
                           outline: 'none',
                         }}
                       />
                     </div>
 
                     <div>
-                      <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
+                      <label style={{ fontSize: '12px', color: '#64748B', display: 'block', marginBottom: '4px' }}>
                         Graduation Year / CGPA
                       </label>
                       <input
                         type="text"
-                        value={`${gradYear} • CGPA: ${cgpa}`}
+                        value={`${gradYear} · CGPA: ${cgpa}`}
                         onChange={(e) => setGradYear(e.target.value)}
                         style={{
                           width: '100%',
-                          backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          boxSizing: 'border-box',
+                          backgroundColor: '#FFFFFF',
+                          border: '1px solid #CBD5E1',
                           borderRadius: '6px',
-                          padding: '0.5rem 0.7rem',
-                          color: '#f8fafc',
-                          fontSize: '0.8rem',
+                          padding: '8px 10px',
+                          color: '#0F172A',
+                          fontSize: '13px',
                           outline: 'none',
                         }}
                       />
@@ -876,23 +850,23 @@ CareerSignal Verified Corporate Recruiting Network
               ) : (
                 /* EXPERIENCED EMPLOYEE TRACK */
                 <div style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: '12px',
-                  padding: '1rem',
+                  backgroundColor: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '10px',
+                  padding: '16px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.85rem',
+                  gap: '14px',
                 }}>
                   {/* AUTO-DISPLAY COMPANY INPUT */}
                   <div style={{ position: 'relative' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                      <label style={{ fontSize: '0.74rem', fontWeight: 600, color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <Building2 size={13} style={{ color: '#38bdf8' }} />
-                        Current / Previous Employer (Auto-display suggestions as you type) *
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Briefcase size={15} style={{ color: '#2563EB' }} />
+                        Current / Previous Employer (Auto-display suggestions) *
                       </label>
-                      <span style={{ fontSize: '0.68rem', color: '#38bdf8', fontWeight: 600 }}>
-                        Auto-Fills Recommended Title
+                      <span style={{ fontSize: '12px', color: '#2563EB', fontWeight: 500 }}>
+                        Auto-Fills Title
                       </span>
                     </div>
 
@@ -910,14 +884,14 @@ CareerSignal Verified Corporate Recruiting Network
                         placeholder="Type to auto-display: Microsoft, Google, Amazon, Infosys..."
                         style={{
                           width: '100%',
-                          backgroundColor: 'rgba(15, 23, 42, 0.7)',
-                          border: showCompanyDropdown ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.15)',
+                          boxSizing: 'border-box',
+                          backgroundColor: '#FFFFFF',
+                          border: showCompanyDropdown ? '1.5px solid #2563EB' : '1px solid #CBD5E1',
                           borderRadius: '8px',
-                          padding: '0.6rem 0.85rem',
-                          color: '#f8fafc',
-                          fontSize: '0.82rem',
+                          padding: '10px 14px',
+                          color: '#0F172A',
+                          fontSize: '14px',
                           outline: 'none',
-                          boxShadow: showCompanyDropdown ? '0 0 12px rgba(56, 189, 248, 0.25)' : 'none',
                         }}
                       />
 
@@ -931,35 +905,35 @@ CareerSignal Verified Corporate Recruiting Network
                           }}
                           style={{
                             position: 'absolute',
-                            right: '10px',
+                            right: '12px',
                             top: '50%',
                             transform: 'translateY(-50%)',
                             background: 'none',
                             border: 'none',
-                            color: '#64748b',
+                            color: '#94A3B8',
                             cursor: 'pointer',
                           }}
                         >
-                          <X size={14} />
+                          <X size={16} />
                         </button>
                       )}
                     </div>
 
-                    {/* Quick 1-Click Employer Pills */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.68rem', color: '#64748b' }}>Popular:</span>
+                    {/* Quick Employer Pills */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '12px', color: '#64748B' }}>Popular:</span>
                       {POPULAR_COMPANIES.slice(0, 5).map((comp) => (
                         <button
                           key={comp.name}
                           type="button"
                           onClick={() => handleSelectCompany(comp)}
                           style={{
-                            backgroundColor: currentCompany.includes(comp.name) ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-                            border: currentCompany.includes(comp.name) ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
-                            borderRadius: '9999px',
-                            padding: '0.15rem 0.55rem',
-                            fontSize: '0.68rem',
-                            color: currentCompany.includes(comp.name) ? '#38bdf8' : '#cbd5e1',
+                            backgroundColor: currentCompany.includes(comp.name) ? '#EFF6FF' : '#FFFFFF',
+                            border: currentCompany.includes(comp.name) ? '1px solid #2563EB' : '1px solid #CBD5E1',
+                            borderRadius: '999px',
+                            padding: '3px 10px',
+                            fontSize: '12px',
+                            color: currentCompany.includes(comp.name) ? '#1D4ED8' : '#475569',
                             cursor: 'pointer',
                           }}
                         >
@@ -975,17 +949,17 @@ CareerSignal Verified Corporate Recruiting Network
                         top: '100%',
                         left: 0,
                         right: 0,
-                        marginTop: '0.4rem',
-                        backgroundColor: '#161923',
-                        border: '1px solid rgba(56, 189, 248, 0.4)',
+                        marginTop: '6px',
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid #CBD5E1',
                         borderRadius: '10px',
-                        boxShadow: '0 15px 35px rgba(0, 0, 0, 0.8), 0 0 20px rgba(56, 189, 248, 0.15)',
+                        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
                         zIndex: 60,
                         maxHeight: '220px',
                         overflowY: 'auto',
-                        padding: '0.35rem',
+                        padding: '6px',
                       }}>
-                        <div style={{ padding: '0.35rem 0.6rem', fontSize: '0.68rem', color: '#38bdf8', fontWeight: 700, borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                        <div style={{ padding: '6px 10px', fontSize: '12px', color: '#2563EB', fontWeight: 600, borderBottom: '1px solid #F1F5F9' }}>
                           MATCHING ENTERPRISES ({filteredCompanies.length}) — Click to Select & Auto-Fill Title
                         </div>
                         {filteredCompanies.map((comp) => (
@@ -993,32 +967,31 @@ CareerSignal Verified Corporate Recruiting Network
                             key={comp.name}
                             onClick={() => handleSelectCompany(comp)}
                             style={{
-                              padding: '0.55rem 0.75rem',
+                              padding: '8px 12px',
                               borderRadius: '6px',
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'space-between',
                               transition: 'background-color 0.12s ease',
-                              borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
+                              borderBottom: '1px solid #F8FAFC',
                             }}
-                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.12)')}
+                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#EFF6FF')}
                             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                           >
                             <div>
-                              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc' }}>
+                              <div style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A' }}>
                                 {comp.name}
                               </div>
-                              <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.1rem' }}>
-                                {comp.location} • <span style={{ color: '#34d399' }}>{comp.suggestedTitle}</span>
+                              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
+                                {comp.location} · <span style={{ color: '#047857' }}>{comp.suggestedTitle}</span>
                               </div>
                             </div>
                             <span style={{
-                              fontSize: '0.65rem',
-                              color: '#38bdf8',
-                              backgroundColor: 'rgba(56, 189, 248, 0.12)',
-                              border: '1px solid rgba(56, 189, 248, 0.3)',
-                              padding: '0.15rem 0.45rem',
+                              fontSize: '11px',
+                              color: '#2563EB',
+                              backgroundColor: '#EFF6FF',
+                              padding: '3px 8px',
                               borderRadius: '4px',
                               fontWeight: 600,
                             }}>
@@ -1030,45 +1003,47 @@ CareerSignal Verified Corporate Recruiting Network
                     )}
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
                     <div>
-                      <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
+                      <label style={{ fontSize: '12px', color: '#64748B', display: 'block', marginBottom: '4px' }}>
                         Current / Most Recent Title
                       </label>
                       <input
                         type="text"
                         value={currentTitle}
                         onChange={(e) => setCurrentTitle(e.target.value)}
-                        placeholder="e.g., Software Systems Analyst"
+                        placeholder="e.g. Software Systems Analyst"
                         style={{
                           width: '100%',
-                          backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          boxSizing: 'border-box',
+                          backgroundColor: '#FFFFFF',
+                          border: '1px solid #CBD5E1',
                           borderRadius: '6px',
-                          padding: '0.5rem 0.7rem',
-                          color: '#f8fafc',
-                          fontSize: '0.8rem',
+                          padding: '8px 10px',
+                          color: '#0F172A',
+                          fontSize: '13px',
                           outline: 'none',
                         }}
                       />
                     </div>
 
                     <div>
-                      <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
-                        Total Experience / Notice Period
+                      <label style={{ fontSize: '12px', color: '#64748B', display: 'block', marginBottom: '4px' }}>
+                        Experience / Notice Period
                       </label>
                       <input
                         type="text"
-                        value={`${experienceYears} • Notice: ${noticePeriod}`}
+                        value={`${experienceYears} · Notice: ${noticePeriod}`}
                         onChange={(e) => setExperienceYears(e.target.value)}
                         style={{
                           width: '100%',
-                          backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          boxSizing: 'border-box',
+                          backgroundColor: '#FFFFFF',
+                          border: '1px solid #CBD5E1',
                           borderRadius: '6px',
-                          padding: '0.5rem 0.7rem',
-                          color: '#f8fafc',
-                          fontSize: '0.8rem',
+                          padding: '8px 10px',
+                          color: '#0F172A',
+                          fontSize: '13px',
                           outline: 'none',
                         }}
                       />
@@ -1077,43 +1052,42 @@ CareerSignal Verified Corporate Recruiting Network
                 </div>
               )}
 
-              {/* 4. DYNAMIC RESUME FILE & AI MATCH ENGINE */}
+              {/* Dynamic Resume & Skills Card */}
               <div style={{
-                border: '1px dashed rgba(56, 189, 248, 0.4)',
-                backgroundColor: 'rgba(15, 23, 42, 0.55)',
-                borderRadius: '14px',
-                padding: '1.1rem',
+                border: '1px solid #E2E8F0',
+                backgroundColor: '#F8FAFC',
+                borderRadius: '12px',
+                padding: '16px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '0.85rem',
+                gap: '14px',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.65rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{
                       width: '40px',
                       height: '40px',
-                      borderRadius: '10px',
-                      backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                      borderRadius: '8px',
+                      backgroundColor: '#EFF6FF',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#38bdf8',
+                      color: '#2563EB',
                     }}>
-                      <UploadCloud size={22} />
+                      <UploadCloud size={20} />
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span>{resumeName}</span>
-                        {uploadSuccess && <CheckCircle size={14} style={{ color: '#10b981' }} />}
+                        {uploadSuccess && <CheckCircle size={15} style={{ color: '#047857' }} />}
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                      <div style={{ fontSize: '12px', color: '#64748B' }}>
                         {isUploading ? `Scanning resume keywords for ${roleTitle}...` : `Tailored for ${roleTitle} (${signal.company_name})`}
                       </div>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
-                    {/* Hidden Real File Input */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <input
                       type="file"
                       ref={fileInputRef}
@@ -1126,41 +1100,41 @@ CareerSignal Verified Corporate Recruiting Network
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isUploading}
                       style={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        borderRadius: '8px',
-                        padding: '0.35rem 0.75rem',
-                        color: '#cbd5e1',
-                        fontSize: '0.72rem',
-                        fontWeight: 600,
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '6px',
+                        padding: '6px 12px',
+                        color: '#334155',
+                        fontSize: '12px',
+                        fontWeight: 500,
                         cursor: 'pointer',
                       }}
                     >
-                      {isUploading ? 'Scanning...' : 'Upload Other Resume'}
+                      {isUploading ? 'Scanning...' : 'Upload Different Resume'}
                     </button>
 
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.4rem',
-                      backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                      border: '1px solid rgba(16, 185, 129, 0.4)',
-                      borderRadius: '9999px',
-                      padding: '0.28rem 0.7rem',
-                      fontSize: '0.72rem',
-                      color: '#34d399',
-                      fontWeight: 700,
+                      gap: '6px',
+                      backgroundColor: '#ECFDF5',
+                      border: '1px solid #A7F3D0',
+                      borderRadius: '999px',
+                      padding: '4px 10px',
+                      fontSize: '12px',
+                      color: '#047857',
+                      fontWeight: 600,
                     }}>
                       <Award size={13} />
-                      <span>96% ATS Compatibility</span>
+                      <span>96% ATS Match</span>
                     </div>
                   </div>
                 </div>
 
-                {/* ROLE-SPECIFIC VERIFIED RESUME SKILLS (INTERACTIVE CHIPS) */}
+                {/* Role-Specific Verified Skills Chips */}
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-                    <span style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 700 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '12px', color: '#0F172A', fontWeight: 600 }}>
                       Verified Resume Competencies for {roleTitle} ({matchedSkills.length} Verified):
                     </span>
                     <button
@@ -1169,35 +1143,36 @@ CareerSignal Verified Corporate Recruiting Network
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: '#38bdf8',
-                        fontSize: '0.7rem',
+                        color: '#2563EB',
+                        fontSize: '12px',
                         fontWeight: 600,
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.25rem',
+                        gap: '4px',
                       }}
                     >
-                      <Plus size={12} />
+                      <Plus size={13} />
                       <span>Add Custom Skill</span>
                     </button>
                   </div>
 
-                  {/* Skills Tag List */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                  {/* Skills Chips */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     {matchedSkills.map((s) => (
                       <span
                         key={s}
                         style={{
-                          backgroundColor: 'rgba(37, 99, 235, 0.15)',
-                          border: '1px solid rgba(37, 99, 235, 0.35)',
+                          backgroundColor: '#EFF6FF',
+                          border: '1px solid #BFDBFE',
                           borderRadius: '6px',
-                          padding: '0.25rem 0.55rem',
-                          fontSize: '0.72rem',
-                          color: '#93c5fd',
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          color: '#1D4ED8',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '0.35rem',
+                          gap: '6px',
+                          fontWeight: 500,
                         }}
                       >
                         <span>✓ {s}</span>
@@ -1207,10 +1182,11 @@ CareerSignal Verified Corporate Recruiting Network
                           style={{
                             background: 'none',
                             border: 'none',
-                            color: '#94a3b8',
+                            color: '#64748B',
                             cursor: 'pointer',
                             padding: 0,
                             lineHeight: 1,
+                            fontSize: '13px',
                           }}
                           title={`Remove ${s}`}
                         >
@@ -1222,7 +1198,7 @@ CareerSignal Verified Corporate Recruiting Network
 
                   {/* Optional Custom Skill Input */}
                   {showAddSkillInput && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
                       <input
                         type="text"
                         value={newSkillInput}
@@ -1233,15 +1209,15 @@ CareerSignal Verified Corporate Recruiting Network
                             handleAddCustomSkill();
                           }
                         }}
-                        placeholder="Type skill & press Enter (e.g., Kafka, Docker, Figma)..."
+                        placeholder="Type skill & press Enter (e.g. Kafka, Docker, Figma)..."
                         style={{
                           flex: 1,
-                          backgroundColor: 'rgba(15, 23, 42, 0.8)',
-                          border: '1px solid #38bdf8',
+                          backgroundColor: '#FFFFFF',
+                          border: '1.5px solid #2563EB',
                           borderRadius: '6px',
-                          padding: '0.35rem 0.65rem',
-                          color: '#f8fafc',
-                          fontSize: '0.74rem',
+                          padding: '6px 10px',
+                          color: '#0F172A',
+                          fontSize: '13px',
                           outline: 'none',
                         }}
                         autoFocus
@@ -1250,13 +1226,13 @@ CareerSignal Verified Corporate Recruiting Network
                         type="button"
                         onClick={() => handleAddCustomSkill()}
                         style={{
-                          backgroundColor: '#2563eb',
-                          color: '#ffffff',
+                          backgroundColor: '#2563EB',
+                          color: '#FFFFFF',
                           border: 'none',
                           borderRadius: '6px',
-                          padding: '0.35rem 0.75rem',
-                          fontSize: '0.74rem',
-                          fontWeight: 700,
+                          padding: '6px 14px',
+                          fontSize: '13px',
+                          fontWeight: 600,
                           cursor: 'pointer',
                         }}
                       >
@@ -1268,19 +1244,19 @@ CareerSignal Verified Corporate Recruiting Network
                         style={{
                           background: 'none',
                           border: 'none',
-                          color: '#64748b',
+                          color: '#64748B',
                           cursor: 'pointer',
                         }}
                       >
-                        <X size={14} />
+                        <X size={16} />
                       </button>
                     </div>
                   )}
 
-                  {/* 1-Click Recommended Skill Additions */}
+                  {/* 1-Click Recommended Skills */}
                   {suggestedSkills.length > 0 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.68rem', color: '#64748b' }}>1-Click Recommended Additions:</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '12px', color: '#64748B' }}>Recommended Additions:</span>
                       {suggestedSkills.map((sk) => (
                         <button
                           key={sk}
@@ -1288,13 +1264,14 @@ CareerSignal Verified Corporate Recruiting Network
                           onClick={() => handleAddSuggestedSkill(sk)}
                           disabled={matchedSkills.includes(sk)}
                           style={{
-                            backgroundColor: matchedSkills.includes(sk) ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.04)',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            backgroundColor: matchedSkills.includes(sk) ? '#F1F5F9' : '#FFFFFF',
+                            border: '1px solid #CBD5E1',
                             borderRadius: '4px',
-                            padding: '0.15rem 0.45rem',
-                            fontSize: '0.66rem',
-                            color: matchedSkills.includes(sk) ? '#475569' : '#38bdf8',
+                            padding: '3px 8px',
+                            fontSize: '11px',
+                            color: matchedSkills.includes(sk) ? '#94A3B8' : '#2563EB',
                             cursor: matchedSkills.includes(sk) ? 'default' : 'pointer',
+                            fontWeight: 500,
                           }}
                         >
                           + {sk}
@@ -1305,10 +1282,10 @@ CareerSignal Verified Corporate Recruiting Network
                 </div>
               </div>
 
-              {/* 5. Cover Note */}
+              {/* Cover Note */}
               <div>
-                <label style={{ fontSize: '0.74rem', fontWeight: 600, color: '#cbd5e1', display: 'block', marginBottom: '0.35rem' }}>
-                  Summary / Motivation Note:
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#0F172A', display: 'block', marginBottom: '6px' }}>
+                  Summary / Motivation Note
                 </label>
                 <textarea
                   rows={2}
@@ -1317,12 +1294,13 @@ CareerSignal Verified Corporate Recruiting Network
                   placeholder="Introduce yourself and state what excites you about joining this team..."
                   style={{
                     width: '100%',
-                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    boxSizing: 'border-box',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #CBD5E1',
                     borderRadius: '8px',
-                    padding: '0.55rem 0.75rem',
-                    color: '#f8fafc',
-                    fontSize: '0.8rem',
+                    padding: '8px 12px',
+                    color: '#0F172A',
+                    fontSize: '13px',
                     outline: 'none',
                     resize: 'vertical',
                     fontFamily: 'inherit',
@@ -1331,18 +1309,18 @@ CareerSignal Verified Corporate Recruiting Network
               </div>
 
               {/* Submit Buttons */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', paddingTop: '6px' }}>
                 <button
                   type="button"
                   onClick={handleClose}
                   style={{
-                    backgroundColor: 'transparent',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #CBD5E1',
                     borderRadius: '8px',
-                    padding: '0.55rem 1rem',
-                    color: '#94a3b8',
-                    fontSize: '0.82rem',
-                    fontWeight: 600,
+                    padding: '8px 16px',
+                    color: '#475569',
+                    fontSize: '14px',
+                    fontWeight: 500,
                     cursor: 'pointer',
                   }}
                 >
@@ -1353,21 +1331,20 @@ CareerSignal Verified Corporate Recruiting Network
                   type="submit"
                   disabled={isSubmitting}
                   style={{
-                    backgroundColor: '#2563eb',
+                    backgroundColor: '#2563EB',
                     border: 'none',
                     borderRadius: '8px',
-                    padding: '0.65rem 1.5rem',
-                    color: '#ffffff',
-                    fontSize: '0.84rem',
-                    fontWeight: 700,
+                    padding: '10px 20px',
+                    color: '#FFFFFF',
+                    fontSize: '14px',
+                    fontWeight: 600,
                     cursor: isSubmitting ? 'not-allowed' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.45rem',
-                    boxShadow: '0 4px 18px rgba(37, 99, 235, 0.4)',
+                    gap: '8px',
                   }}
                 >
-                  <Send size={14} />
+                  <Send size={15} />
                   <span>{isSubmitting ? (evalStep || 'Processing...') : 'Submit & Guarantee Acceptance'}</span>
                 </button>
               </div>
@@ -1377,79 +1354,76 @@ CareerSignal Verified Corporate Recruiting Network
             <div style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: '1.25rem',
-              animation: 'fadeIn 0.3s ease-in',
+              gap: '20px',
             }}>
               {/* Acceptance Badge Banner */}
               <div style={{
-                backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                border: '1px solid rgba(16, 185, 129, 0.4)',
-                borderRadius: '16px',
-                padding: '1.25rem',
+                backgroundColor: '#ECFDF5',
+                border: '1px solid #A7F3D0',
+                borderRadius: '12px',
+                padding: '20px',
                 textAlign: 'center',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '0.65rem',
-                boxShadow: '0 0 30px rgba(16, 185, 129, 0.15)',
+                gap: '10px',
               }}>
                 <div style={{
-                  width: '54px',
-                  height: '54px',
+                  width: '48px',
+                  height: '48px',
                   borderRadius: '50%',
-                  backgroundColor: '#10b981',
+                  backgroundColor: '#047857',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#ffffff',
-                  boxShadow: '0 0 25px rgba(16, 185, 129, 0.5)',
+                  color: '#FFFFFF',
                 }}>
-                  <Check size={32} />
+                  <Check size={28} />
                 </div>
 
                 <div>
                   <span style={{
-                    fontSize: '0.72rem',
-                    fontWeight: 800,
-                    letterSpacing: '0.08em',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
                     textTransform: 'uppercase',
-                    color: '#34d399',
+                    color: '#047857',
                   }}>
                     APPLICATION OFFICIALLY ACCEPTED
                   </span>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc', margin: '0.2rem 0' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0F172A', margin: '4px 0' }}>
                     Congratulations, {submittedApp.applicant_name}!
                   </h3>
-                  <p style={{ fontSize: '0.8rem', color: '#cbd5e1', maxWidth: '480px', margin: '0 auto' }}>
-                    Your resume has passed corporate ATS evaluation with a <strong>96% match score</strong>. {submittedApp.company_name} Talent Acquisition has accepted your candidacy for <strong>{submittedApp.role_title}</strong>!
+                  <p style={{ fontSize: '14px', color: '#475569', maxWidth: '480px', margin: '0 auto' }}>
+                    Your resume has passed corporate ATS evaluation with a <strong style={{ color: '#047857' }}>96% match score</strong>. {submittedApp.company_name} Talent Acquisition has accepted your candidacy for <strong>{submittedApp.role_title}</strong>!
                   </p>
                 </div>
               </div>
 
               {/* Official Interview Confirmation Ticket */}
               <div style={{
-                backgroundColor: '#161922',
-                border: '1px solid rgba(56, 189, 248, 0.35)',
-                borderRadius: '14px',
-                padding: '1.25rem',
+                backgroundColor: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: '12px',
+                padding: '18px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '0.9rem',
+                gap: '14px',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '0.6rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <ShieldCheck size={16} style={{ color: '#10b981' }} />
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#38bdf8' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #E2E8F0', paddingBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ShieldCheck size={18} style={{ color: '#047857' }} />
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A' }}>
                       OFFICIAL ADMISSION TICKET
                     </span>
                   </div>
                   <span style={{
                     fontFamily: 'monospace',
-                    fontSize: '0.74rem',
+                    fontSize: '12px',
                     fontWeight: 700,
-                    color: '#f8fafc',
-                    backgroundColor: 'rgba(56, 189, 248, 0.15)',
-                    padding: '0.15rem 0.5rem',
+                    color: '#2563EB',
+                    backgroundColor: '#EFF6FF',
+                    padding: '3px 8px',
                     borderRadius: '4px',
                   }}>
                     {submittedApp.acceptance_details?.ticket_id}
@@ -1460,33 +1434,33 @@ CareerSignal Verified Corporate Recruiting Network
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '0.75rem',
-                  fontSize: '0.78rem',
+                  gap: '12px',
+                  fontSize: '13px',
                 }}>
                   <div>
-                    <span style={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }}>Company & Target Role</span>
-                    <strong style={{ color: '#ffffff' }}>{submittedApp.company_name}</strong>
-                    <div style={{ color: '#38bdf8' }}>{submittedApp.role_title}</div>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '12px' }}>Company & Target Role</span>
+                    <strong style={{ color: '#0F172A' }}>{submittedApp.company_name}</strong>
+                    <div style={{ color: '#2563EB' }}>{submittedApp.role_title}</div>
                   </div>
 
                   <div>
-                    <span style={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }}>Assigned Recruiter</span>
-                    <strong style={{ color: '#ffffff' }}>{submittedApp.acceptance_details?.recruiter_name}</strong>
-                    <div style={{ color: '#94a3b8', fontSize: '0.72rem' }}>{submittedApp.acceptance_details?.recruiter_title}</div>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '12px' }}>Assigned Recruiter</span>
+                    <strong style={{ color: '#0F172A' }}>{submittedApp.acceptance_details?.recruiter_name}</strong>
+                    <div style={{ color: '#64748B', fontSize: '12px' }}>{submittedApp.acceptance_details?.recruiter_title}</div>
                   </div>
 
                   <div>
-                    <span style={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }}>Scheduled Interview Date</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#34d399', fontWeight: 700 }}>
-                      <Calendar size={13} />
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '12px' }}>Scheduled Interview Date</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#047857', fontWeight: 600 }}>
+                      <Calendar size={14} />
                       <span>{submittedApp.acceptance_details?.interview_date}</span>
                     </div>
                   </div>
 
                   <div>
-                    <span style={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }}>Interview Round & Format</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#ffffff', fontWeight: 600 }}>
-                      <Clock size={13} style={{ color: '#38bdf8' }} />
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '12px' }}>Interview Round & Format</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#0F172A', fontWeight: 500 }}>
+                      <Clock size={14} style={{ color: '#2563EB' }} />
                       <span>{submittedApp.acceptance_details?.interview_time}</span>
                     </div>
                   </div>
@@ -1494,27 +1468,28 @@ CareerSignal Verified Corporate Recruiting Network
 
                 {/* Verified Competencies */}
                 <div style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid #E2E8F0',
                   borderRadius: '8px',
-                  padding: '0.65rem 0.85rem',
-                  fontSize: '0.74rem',
-                  color: '#cbd5e1',
+                  padding: '12px',
+                  fontSize: '13px',
+                  color: '#475569',
                 }}>
-                  <strong style={{ color: '#38bdf8', display: 'block', marginBottom: '0.3rem' }}>
+                  <strong style={{ color: '#0F172A', display: 'block', marginBottom: '6px' }}>
                     ATS Verified Competencies for {submittedApp.role_title}:
                   </strong>
-                  <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     {submittedApp.acceptance_details?.matched_skills.map((s) => (
                       <span
                         key={s}
                         style={{
-                          backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          backgroundColor: '#ECFDF5',
+                          border: '1px solid #A7F3D0',
                           borderRadius: '4px',
-                          padding: '0.15rem 0.45rem',
-                          fontSize: '0.68rem',
-                          color: '#34d399',
+                          padding: '3px 8px',
+                          fontSize: '12px',
+                          color: '#047857',
+                          fontWeight: 500,
                         }}
                       >
                         ✓ {s}
@@ -1525,15 +1500,15 @@ CareerSignal Verified Corporate Recruiting Network
 
                 {/* AI Resume Feedback */}
                 <div style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid #E2E8F0',
                   borderRadius: '8px',
-                  padding: '0.65rem 0.85rem',
-                  fontSize: '0.74rem',
-                  color: '#cbd5e1',
-                  lineHeight: 1.45,
+                  padding: '12px',
+                  fontSize: '13px',
+                  color: '#475569',
+                  lineHeight: 1.5,
                 }}>
-                  <strong style={{ color: '#38bdf8', display: 'block', marginBottom: '0.15rem' }}>
+                  <strong style={{ color: '#0F172A', display: 'block', marginBottom: '4px' }}>
                     Corporate ATS Resume Assessment:
                   </strong>
                   &ldquo;{submittedApp.acceptance_details?.feedback}&rdquo;
@@ -1541,26 +1516,26 @@ CareerSignal Verified Corporate Recruiting Network
               </div>
 
               {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 <button
                   onClick={handleDownloadAcceptanceTicket}
                   style={{
                     flex: 1,
-                    backgroundColor: 'rgba(56, 189, 248, 0.15)',
-                    border: '1px solid rgba(56, 189, 248, 0.4)',
-                    color: '#38bdf8',
+                    backgroundColor: '#EFF6FF',
+                    border: '1px solid #BFDBFE',
+                    color: '#1D4ED8',
                     borderRadius: '8px',
-                    padding: '0.6rem 1rem',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
+                    padding: '10px 14px',
+                    fontSize: '13px',
+                    fontWeight: 600,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '0.35rem',
+                    gap: '6px',
                   }}
                 >
-                  <Download size={14} />
+                  <Download size={15} />
                   <span>Download Acceptance Pass</span>
                 </button>
 
@@ -1571,34 +1546,33 @@ CareerSignal Verified Corporate Recruiting Network
                   onClick={(e) => e.stopPropagation()}
                   style={{
                     flex: 1,
-                    backgroundColor: '#2563eb',
-                    color: '#ffffff',
+                    backgroundColor: '#2563EB',
+                    color: '#FFFFFF',
                     borderRadius: '8px',
-                    padding: '0.6rem 1rem',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
+                    padding: '10px 14px',
+                    fontSize: '13px',
+                    fontWeight: 600,
                     textDecoration: 'none',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '0.35rem',
-                    boxShadow: '0 4px 14px rgba(37, 99, 235, 0.4)',
+                    gap: '6px',
                   }}
                 >
-                  <span>Direct {submittedApp.role_title} on {submittedApp.company_name}</span>
+                  <span>Open {submittedApp.company_name} Portal</span>
                   <ExternalLink size={14} />
                 </a>
 
                 <button
                   onClick={handleClose}
                   style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    color: '#cbd5e1',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #CBD5E1',
+                    color: '#475569',
                     borderRadius: '8px',
-                    padding: '0.6rem 1.2rem',
-                    fontSize: '0.78rem',
-                    fontWeight: 600,
+                    padding: '10px 16px',
+                    fontSize: '13px',
+                    fontWeight: 500,
                     cursor: 'pointer',
                   }}
                 >
