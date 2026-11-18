@@ -14,37 +14,63 @@ export const VacancyStatsChart: React.FC<VacancyStatsChartProps> = () => {
 
   const months = ['JAN 2023', 'FEB 2023', 'MAR 2023', 'Q3 2026', 'NOV 2026'];
 
-  // Data points: [Application sent, Interviews]
-  const weekData = [
-    { week: 'week 01', sent: 68, interviews: 32 },
-    { week: 'week 02', sent: 48, interviews: 26 },
-    { week: 'week 03', sent: 56, interviews: 38 },
-    { week: 'week 04', sent: 82, interviews: 62 },
-  ];
+  // Month-adaptive data points
+  const getMonthData = (m: string) => {
+    if (m === 'NOV 2026') {
+      return [
+        { week: 'week 01', sent: 74, interviews: 42 },
+        { week: 'week 02', sent: 62, interviews: 38 },
+        { week: 'week 03', sent: 88, interviews: 54 },
+        { week: 'week 04', sent: 96, interviews: 78 },
+      ];
+    }
+    if (m === 'Q3 2026') {
+      return [
+        { week: 'week 01', sent: 55, interviews: 28 },
+        { week: 'week 02', sent: 65, interviews: 40 },
+        { week: 'week 03', sent: 72, interviews: 46 },
+        { week: 'week 04', sent: 84, interviews: 58 },
+      ];
+    }
+    if (m === 'FEB 2023') {
+      return [
+        { week: 'week 01', sent: 50, interviews: 24 },
+        { week: 'week 02', sent: 70, interviews: 44 },
+        { week: 'week 03', sent: 65, interviews: 36 },
+        { week: 'week 04', sent: 90, interviews: 68 },
+      ];
+    }
+    // Default JAN 2023
+    return [
+      { week: 'week 01', sent: 68, interviews: 32 },
+      { week: 'week 02', sent: 48, interviews: 26 },
+      { week: 'week 03', sent: 56, interviews: 38 },
+      { week: 'week 04', sent: 82, interviews: 62 },
+    ];
+  };
+
+  const weekData = getMonthData(selectedMonth);
 
   // SVG Coordinates mapping for 520x150 chart area (x: 40..480, y: 20..140)
-  // Sent points: (50, 42), (190, 82), (330, 66), (470, 20)
-  // Interview points: (50, 102), (190, 114), (330, 92), (470, 52)
-  const sentPoints = [
-    { x: 50, y: 42, val: 68 },
-    { x: 190, y: 82, val: 48 },
-    { x: 330, y: 66, val: 56 },
-    { x: 470, y: 20, val: 82 },
-  ];
+  // Higher val = smaller y coordinate (higher up on graph)
+  const sentPoints = weekData.map((d, i) => {
+    const x = 50 + i * 140;
+    const y = Math.round(140 - (d.sent / 100) * 115);
+    return { x, y, val: d.sent };
+  });
 
-  const interviewPoints = [
-    { x: 50, y: 102, val: 32 },
-    { x: 190, y: 114, val: 26 },
-    { x: 330, y: 92, val: 38 },
-    { x: 470, y: 52, val: 62 },
-  ];
+  const interviewPoints = weekData.map((d, i) => {
+    const x = 50 + i * 140;
+    const y = Math.round(140 - (d.interviews / 100) * 115);
+    return { x, y, val: d.interviews };
+  });
 
   // Smooth cubic spline curves
-  const sentPathD = `M 50 42 C 120 40, 130 82, 190 82 C 250 82, 270 66, 330 66 C 390 66, 410 20, 470 20`;
-  const sentAreaD = `${sentPathD} L 470 140 L 50 140 Z`;
+  const sentPathD = `M ${sentPoints[0].x} ${sentPoints[0].y} C ${sentPoints[0].x + 70} ${sentPoints[0].y}, ${sentPoints[1].x - 60} ${sentPoints[1].y}, ${sentPoints[1].x} ${sentPoints[1].y} C ${sentPoints[1].x + 60} ${sentPoints[1].y}, ${sentPoints[2].x - 60} ${sentPoints[2].y}, ${sentPoints[2].x} ${sentPoints[2].y} C ${sentPoints[2].x + 60} ${sentPoints[2].y}, ${sentPoints[3].x - 60} ${sentPoints[3].y}, ${sentPoints[3].x} ${sentPoints[3].y}`;
+  const sentAreaD = `${sentPathD} L ${sentPoints[3].x} 140 L ${sentPoints[0].x} 140 Z`;
 
-  const interviewPathD = `M 50 102 C 120 102, 130 114, 190 114 C 250 114, 270 92, 330 92 C 390 92, 410 52, 470 52`;
-  const interviewAreaD = `${interviewPathD} L 470 140 L 50 140 Z`;
+  const interviewPathD = `M ${interviewPoints[0].x} ${interviewPoints[0].y} C ${interviewPoints[0].x + 70} ${interviewPoints[0].y}, ${interviewPoints[1].x - 60} ${interviewPoints[1].y}, ${interviewPoints[1].x} ${interviewPoints[1].y} C ${interviewPoints[1].x + 60} ${interviewPoints[1].y}, ${interviewPoints[2].x - 60} ${interviewPoints[2].y}, ${interviewPoints[2].x} ${interviewPoints[2].y} C ${interviewPoints[2].x + 60} ${interviewPoints[2].y}, ${interviewPoints[3].x - 60} ${interviewPoints[3].y}, ${interviewPoints[3].x} ${interviewPoints[3].y}`;
+  const interviewAreaD = `${interviewPathD} L ${interviewPoints[3].x} 140 L ${interviewPoints[0].x} 140 Z`;
 
   return (
     <div style={{

@@ -7,28 +7,48 @@ import {
   Pencil, 
   Sparkles,
   ExternalLink,
-  Check
+  Check,
+  ChevronDown,
+  X
 } from 'lucide-react';
+
+export interface FilterState {
+  datePosted: string;
+  experienceLevel: string;
+  location: string;
+  jobType: string;
+  workMode: string;
+}
 
 interface JobSearchSidebarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onSelectCompany?: (company: string) => void;
   onSelectRoleFilter?: (role: string) => void;
+  onFiltersChange?: (filters: FilterState) => void;
   onOpenProModal?: () => void;
 }
+
+export const FILTER_OPTIONS: Record<keyof FilterState, string[]> = {
+  datePosted: ['Anytime', 'Past 24 Hours', 'Past Week', 'Past Month'],
+  experienceLevel: ['All Levels', 'Internship', 'Entry Level', 'Associate', 'Mid-Senior', 'Director'],
+  location: ['All Locations', 'Bengaluru, India', 'Hyderabad, India', 'Mumbai, India', 'Remote (Global)', 'San Jose, CA', 'London, UK'],
+  jobType: ['All Types', 'Full-Time', 'Contract', 'Part-Time', 'Internship'],
+  workMode: ['All Modes', 'On-site', 'Hybrid', 'Remote'],
+};
 
 export const JobSearchSidebar: React.FC<JobSearchSidebarProps> = ({
   searchQuery,
   onSearchChange,
   onSelectCompany,
   onSelectRoleFilter,
+  onFiltersChange,
   onOpenProModal,
 }) => {
-  const [selectedFilterKey, setSelectedFilterKey] = useState<string | null>(null);
+  const [activePopoverKey, setActivePopoverKey] = useState<keyof FilterState | null>(null);
 
   // Active filter values matching reference image
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<FilterState>({
     datePosted: 'Anytime',
     experienceLevel: 'Associate',
     location: 'Bengaluru, India',
@@ -52,13 +72,12 @@ export const JobSearchSidebar: React.FC<JobSearchSidebarProps> = ({
     'graphic designer',
   ];
 
-  const handleEditFilter = (key: keyof typeof filters, defaultVal: string) => {
-    const newVal = prompt(`Update ${key}:`, filters[key]);
-    if (newVal !== null && newVal.trim()) {
-      setFilters(prev => ({ ...prev, [key]: newVal.trim() }));
-      if (onSearchChange && key === 'location') {
-        onSearchChange(newVal.trim());
-      }
+  const handleSelectOption = (key: keyof FilterState, val: string) => {
+    const updated = { ...filters, [key]: val };
+    setFilters(updated);
+    setActivePopoverKey(null);
+    if (onFiltersChange) {
+      onFiltersChange(updated);
     }
   };
 
@@ -209,13 +228,14 @@ export const JobSearchSidebar: React.FC<JobSearchSidebarProps> = ({
         </div>
       </div>
 
-      {/* 3. Filter Parameters List with Pencil Edit Actions */}
+      {/* 3. Filter Parameters List with INLINE POPOVER SELECTORS (NO PROMPT) */}
       <div style={{
         display: 'flex',
         flexDirection: 'column',
         gap: '0.85rem',
         borderTop: '1px solid rgba(255, 255, 255, 0.05)',
         paddingTop: '0.85rem',
+        position: 'relative',
       }}>
         {[
           { label: 'Date posted', key: 'datePosted' as const, val: filters.datePosted },
@@ -226,32 +246,94 @@ export const JobSearchSidebar: React.FC<JobSearchSidebarProps> = ({
         ].map((item) => (
           <div
             key={item.label}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              fontSize: '0.73rem',
-            }}
+            style={{ position: 'relative' }}
           >
-            <span style={{ color: '#64748b' }}>{item.label}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-              <span style={{ color: '#f1f5f9', fontWeight: 600 }}>{item.val}</span>
-              <button
-                onClick={() => handleEditFilter(item.key, item.val)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#2563eb',
-                  cursor: 'pointer',
-                  padding: '0.15rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-                title={`Edit ${item.label}`}
-              >
-                <Pencil size={11} />
-              </button>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '0.73rem',
+              }}
+            >
+              <span style={{ color: '#64748b' }}>{item.label}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <span 
+                  onClick={() => setActivePopoverKey(activePopoverKey === item.key ? null : item.key)}
+                  style={{ color: '#f1f5f9', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  {item.val}
+                </span>
+                <button
+                  onClick={() => setActivePopoverKey(activePopoverKey === item.key ? null : item.key)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#2563eb',
+                    cursor: 'pointer',
+                    padding: '0.15rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title={`Change ${item.label}`}
+                >
+                  <Pencil size={11} />
+                </button>
+              </div>
             </div>
+
+            {/* Interactive Dark Popover */}
+            {activePopoverKey === item.key && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: '0.35rem',
+                backgroundColor: '#1b1d24',
+                border: '1px solid rgba(56, 189, 248, 0.4)',
+                borderRadius: '8px',
+                padding: '0.35rem',
+                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.8), 0 0 15px rgba(37, 99, 235, 0.2)',
+                zIndex: 50,
+                minWidth: '160px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.25rem 0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', marginBottom: '0.25rem' }}>
+                  <span style={{ fontSize: '0.66rem', color: '#38bdf8', fontWeight: 700 }}>
+                    Select {item.label}
+                  </span>
+                  <button
+                    onClick={() => setActivePopoverKey(null)}
+                    style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: 0 }}
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+                {FILTER_OPTIONS[item.key].map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() => handleSelectOption(item.key, opt)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '0.35rem 0.6rem',
+                      backgroundColor: item.val === opt ? 'rgba(37, 99, 235, 0.2)' : 'transparent',
+                      color: item.val === opt ? '#38bdf8' : '#cbd5e1',
+                      border: 'none',
+                      borderRadius: '5px',
+                      fontSize: '0.72rem',
+                      fontWeight: item.val === opt ? 700 : 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span>{opt}</span>
+                    {item.val === opt && <Check size={12} />}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -336,4 +418,3 @@ export const JobSearchSidebar: React.FC<JobSearchSidebarProps> = ({
     </aside>
   );
 };
-

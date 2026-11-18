@@ -1,8 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SignalItem, OpenRole, JobApplication, CandidateType, AcceptanceDetails } from '../types';
-import { getVerifiedCareerUrl, getDirectJobPortalUrl, saveApplication } from '../lib/api';
+import { 
+  getVerifiedCareerUrl, 
+  getDirectJobPortalUrl, 
+  saveApplication,
+  POPULAR_INSTITUTES,
+  POPULAR_COMPANIES,
+  getSkillsForRole,
+  getSuggestedSkills,
+  InstituteInfo,
+  CompanyInfo
+} from '../lib/api';
 import { 
   X, 
   Send, 
@@ -25,7 +35,11 @@ import {
   ExternalLink,
   Phone,
   Check,
-  Download
+  Download,
+  Plus,
+  Search,
+  CheckCircle,
+  FileCheck
 } from 'lucide-react';
 
 interface JobApplicationModalProps {
@@ -46,55 +60,154 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
   const [candidateType, setCandidateType] = useState<CandidateType>('Student / Fresher');
 
   // Common Contact Info
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [linkedin, setLinkedin] = useState('');
-  const [portfolio, setPortfolio] = useState('');
+  const [fullName, setFullName] = useState('Alex Lindqvist');
+  const [email, setEmail] = useState('alex.lindqvist@university.edu');
+  const [phone, setPhone] = useState('+91 98765 43210');
+  const [linkedin, setLinkedin] = useState('https://linkedin.com/in/alex-lindqvist');
+  const [portfolio, setPortfolio] = useState('https://github.com/alexlindqvist');
   const [coverNote, setCoverNote] = useState('');
 
   // Student Specific
-  const [university, setUniversity] = useState('');
-  const [degree, setDegree] = useState('');
+  const [university, setUniversity] = useState('Indian Institute of Technology Bombay (IIT Bombay)');
+  const [degree, setDegree] = useState('B.Tech in Computer Science & Engineering');
   const [gradYear, setGradYear] = useState('2025');
-  const [cgpa, setCgpa] = useState('8.8 / 10.0');
+  const [cgpa, setCgpa] = useState('9.1 / 10.0');
 
   // Employee Specific
-  const [currentCompany, setCurrentCompany] = useState('');
-  const [currentTitle, setCurrentTitle] = useState('');
+  const [currentCompany, setCurrentCompany] = useState('Microsoft');
+  const [currentTitle, setCurrentTitle] = useState('Software Systems Analyst');
   const [experienceYears, setExperienceYears] = useState('3.5 Years');
   const [noticePeriod, setNoticePeriod] = useState('15 Days');
 
-  // Resume State
-  const [resumeName, setResumeName] = useState<string>('Candidate_Resume_2026.pdf');
-  const [matchedSkills, setMatchedSkills] = useState<string[]>([
-    'UI/UX Design', 'Figma', 'User Research', 'Design Systems', 'React', 'Problem Solving'
-  ]);
+  // Autocomplete UI States
+  const [showInstituteDropdown, setShowInstituteDropdown] = useState(false);
+  const [instituteSearch, setInstituteSearch] = useState('');
+  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
+  const [companySearch, setCompanySearch] = useState('');
+
+  // Dynamic Resume & Skills State
+  const [resumeName, setResumeName] = useState<string>('Alex_Lindqvist_Resume.pdf');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [matchedSkills, setMatchedSkills] = useState<string[]>([]);
+  const [newSkillInput, setNewSkillInput] = useState('');
+  const [showAddSkillInput, setShowAddSkillInput] = useState(false);
 
   // Submission & Acceptance State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [evalStep, setEvalStep] = useState<string>('');
   const [submittedApp, setSubmittedApp] = useState<JobApplication | null>(null);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const roleTitle = selectedRole?.title || signal?.title || 'Open Position';
+  const roleDepartment = selectedRole?.department || signal?.department || 'Technology';
+  const roleLocation = selectedRole?.location || (signal?.city ? `${signal.city}, ${signal.country}` : signal?.country || 'Global');
+  const roleSalary = selectedRole?.salary_range || signal?.salary_range || 'Competitive Package';
+  const directPortalUrl = signal ? getDirectJobPortalUrl(signal.company_name, roleTitle, signal.careers_url || signal.source_url) : '#';
+
+  // Automatically adapt skills and resume filename whenever the job / role changes
+  useEffect(() => {
+    if (signal) {
+      const skills = getSkillsForRole(roleTitle, signal.company_name, roleDepartment);
+      setMatchedSkills(skills);
+
+      const cleanRole = roleTitle.replace(/[^a-zA-Z0-9]/g, '_');
+      const cleanName = (fullName || 'Candidate').replace(/\s+/g, '_');
+      setResumeName(`${cleanName}_${cleanRole}_Resume.pdf`);
+
+      // Adaptive motivation note
+      setCoverNote(
+        `Passionate about joining ${signal.company_name} as a ${roleTitle}. My background in ${skills.slice(0, 3).join(', ')} directly aligns with this team's roadmap and objectives.`
+      );
+    }
+  }, [signal, selectedRole, roleTitle]);
+
   if (!isOpen || !signal) return null;
 
-  const roleTitle = selectedRole?.title || signal.title;
-  const roleDepartment = selectedRole?.department || signal.department || 'Technology';
-  const roleLocation = selectedRole?.location || (signal.city ? `${signal.city}, ${signal.country}` : signal.country || 'Global');
-  const roleSalary = selectedRole?.salary_range || signal.salary_range || 'Competitive Package';
-  const directPortalUrl = getDirectJobPortalUrl(signal.company_name, roleTitle, signal.careers_url || signal.source_url);
-  const officialPortal = directPortalUrl;
+  // Filter institutes based on input
+  const filteredInstitutes = POPULAR_INSTITUTES.filter((inst) => {
+    const q = (instituteSearch || university).toLowerCase().trim();
+    if (!q) return true;
+    return (
+      inst.name.toLowerCase().includes(q) ||
+      inst.shortName.toLowerCase().includes(q) ||
+      inst.location.toLowerCase().includes(q)
+    );
+  });
 
-  const isSoftwareRole = roleTitle.toLowerCase().includes('analyst') || 
-    roleTitle.toLowerCase().includes('engineer') || 
-    roleTitle.toLowerCase().includes('systems') ||
-    roleTitle.toLowerCase().includes('cloud');
+  // Filter companies based on input
+  const filteredCompanies = POPULAR_COMPANIES.filter((comp) => {
+    const q = (companySearch || currentCompany).toLowerCase().trim();
+    if (!q) return true;
+    return (
+      comp.name.toLowerCase().includes(q) ||
+      comp.location.toLowerCase().includes(q) ||
+      comp.suggestedTitle.toLowerCase().includes(q)
+    );
+  });
 
-  // Determine assigning recruiter based on company
+  // Selecting an institute from autocomplete
+  const handleSelectInstitute = (inst: InstituteInfo) => {
+    setUniversity(inst.name);
+    setDegree(inst.defaultDegree);
+    setInstituteSearch('');
+    setShowInstituteDropdown(false);
+  };
+
+  // Selecting a company from autocomplete
+  const handleSelectCompany = (comp: CompanyInfo) => {
+    setCurrentCompany(comp.name);
+    setCurrentTitle(comp.suggestedTitle);
+    setCompanySearch('');
+    setShowCompanyDropdown(false);
+  };
+
+  // Handle skill removal
+  const handleRemoveSkill = (skillToRemove: string) => {
+    setMatchedSkills((prev) => prev.filter((s) => s !== skillToRemove));
+  };
+
+  // Handle adding custom skill
+  const handleAddCustomSkill = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = newSkillInput.trim();
+    if (trimmed && !matchedSkills.includes(trimmed)) {
+      setMatchedSkills((prev) => [...prev, trimmed]);
+      setNewSkillInput('');
+      setShowAddSkillInput(false);
+    }
+  };
+
+  // Handle clicking a suggested skill badge
+  const handleAddSuggestedSkill = (skill: string) => {
+    if (!matchedSkills.includes(skill)) {
+      setMatchedSkills((prev) => [...prev, skill]);
+    }
+  };
+
+  // Handle simulated/real file upload with ATS scanning
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIsUploading(true);
+      setResumeName(file.name);
+      setTimeout(() => {
+        setIsUploading(false);
+        setUploadSuccess(true);
+        // Guarantee refreshed role skills verified
+        const refreshedSkills = getSkillsForRole(roleTitle, signal.company_name, roleDepartment);
+        setMatchedSkills(Array.from(new Set([...refreshedSkills, ...matchedSkills])));
+        setTimeout(() => setUploadSuccess(false), 3000);
+      }, 900);
+    }
+  };
+
+  // Recruiter info
   const getRecruiterInfo = () => {
     const comp = (signal.company_name || '').toLowerCase();
     if (comp.includes('microsoft')) {
-      return { name: 'David Jose', title: 'Lead Design & Engineering Recruiter' };
+      return { name: 'David Jose', title: 'Lead Systems & Design Recruiter' };
     }
     if (comp.includes('adobe')) {
       return { name: 'Ishitha Xavier', title: 'Senior Talent Acquisition Partner' };
@@ -102,52 +215,41 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
     if (comp.includes('nvidia')) {
       return { name: 'Hansika Khan', title: 'Director of Silicon & AI Talent' };
     }
+    if (comp.includes('google') || comp.includes('deepmind')) {
+      return { name: 'Dr. Marcus Vance', title: 'Principal Research Talent Director' };
+    }
     return { name: 'Sarah Jenkins', title: 'Principal Talent Acquisition Lead' };
   };
 
-  // Quick 1-Click Sample Profiles
+  // Presets
   const loadStudentPreset = () => {
     setCandidateType('Student / Fresher');
     setFullName('Priya Sharma');
     setEmail('priya.sharma@iitb.ac.in');
     setPhone('+91 98765 43210');
     setLinkedin('https://linkedin.com/in/priya-sharma-tech');
-    setPortfolio(isSoftwareRole ? 'https://github.com/priyasharma-dev' : 'https://priyasharma.design');
-    setUniversity('Indian Institute of Technology (IIT Bombay)');
-    setDegree(isSoftwareRole ? 'B.Tech in Computer Science & Systems Engineering' : 'B.Tech in Computer Science & Interaction Design');
+    setPortfolio('https://github.com/priyasharma-dev');
+    setUniversity('Indian Institute of Technology Bombay (IIT Bombay)');
+    setDegree('B.Tech in Computer Science & Engineering');
     setGradYear('2025');
-    setCgpa('9.2 / 10.0');
-    setCoverNote(isSoftwareRole
-      ? `Dedicated student specialized in high-performance cloud architecture and data pipeline optimization, excited to join ${signal.company_name} as a ${roleTitle}.`
-      : 'Passionate student designer with multiple national hackathon wins, specialized in translating complex user flows into accessible, delightful interfaces.'
-    );
-    setResumeName(isSoftwareRole ? 'Priya_Sharma_IIT_Software_Resume.pdf' : 'Priya_Sharma_IIT_Resume.pdf');
-    setMatchedSkills(isSoftwareRole
-      ? ['Software Architecture', 'Systems Analysis', 'Cloud Computing', 'SQL & Data Engineering', 'Python', 'Distributed Systems']
-      : ['Figma', 'UI/UX Prototyping', 'React', 'Design Systems', 'User Research', 'Next.js']
-    );
+    setCgpa('9.3 / 10.0');
+    const skills = getSkillsForRole(roleTitle, signal.company_name, roleDepartment);
+    setMatchedSkills(skills);
   };
 
   const loadEmployeePreset = () => {
     setCandidateType('Experienced Professional');
     setFullName('Rahul Verma');
-    setEmail('rahul.verma@alumni.org');
+    setEmail('rahul.verma@enterprise.com');
     setPhone('+91 98112 34567');
     setLinkedin('https://linkedin.com/in/rahul-verma-tech');
     setPortfolio('https://github.com/rahulverma-dev');
-    setCurrentCompany(isSoftwareRole ? 'Infosys Cloud Platforms' : 'Infosys Innovation Labs');
-    setCurrentTitle(isSoftwareRole ? 'Senior Software & Systems Analyst' : 'Senior Product Designer / Systems Lead');
+    setCurrentCompany('Microsoft');
+    setCurrentTitle('Senior Systems Analyst');
     setExperienceYears('4.5 Years');
     setNoticePeriod('Immediate / 15 Days');
-    setCoverNote(isSoftwareRole
-      ? `Experienced software systems analyst with 4+ years evaluating enterprise distributed systems, microservices resiliency, and cloud specifications at scale. Highly aligned with ${roleTitle} expectations.`
-      : 'Experienced professional with 4+ years spearheading cross-functional design systems and consumer-facing enterprise portals.'
-    );
-    setResumeName(isSoftwareRole ? 'Rahul_Verma_Senior_Analyst.pdf' : 'Rahul_Verma_Senior_Designer.pdf');
-    setMatchedSkills(isSoftwareRole
-      ? ['Distributed Systems Analysis', 'Software Architecture', 'Cloud Reliability Engineering', 'SQL & Databases', 'Microservices', 'Enterprise Security']
-      : ['Figma', 'Design Systems Architecture', 'Micro-interactions', 'Agile Leadership', 'TypeScript', 'WCAG Accessibility']
-    );
+    const skills = getSkillsForRole(roleTitle, signal.company_name, roleDepartment);
+    setMatchedSkills(skills);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -155,21 +257,20 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
     if (!fullName.trim() || !email.trim()) return;
 
     setIsSubmitting(true);
-    setEvalStep('Parsing resume keywords and formatting profile...');
+    setEvalStep(`Parsing resume and keywords for ${roleTitle}...`);
 
     setTimeout(() => {
-      setEvalStep(`Evaluating credentials against ${signal.company_name} criteria...`);
+      setEvalStep(`Evaluating qualifications against ${signal.company_name} criteria...`);
     }, 400);
 
     setTimeout(() => {
       setEvalStep('Corporate ATS Verification: MATCH CONFIRMED (96% Fit Score)...');
-    }, 800);
+    }, 850);
 
     setTimeout(() => {
       const recruiter = getRecruiterInfo();
       const ticketId = `ACCEPT-${(signal.company_name?.substring(0, 4).toUpperCase() || 'CORP')}-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
-      // Calculate interview date 3 business days from now
       const interviewDate = new Date();
       interviewDate.setDate(interviewDate.getDate() + 3);
       const dateStr = interviewDate.toLocaleDateString('en-US', {
@@ -183,11 +284,11 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
         ticket_id: ticketId,
         interview_date: dateStr,
         interview_time: '10:30 AM IST (Virtual Video Conference)',
-        interview_round: 'Round 1: Portfolio & Competency Discussion',
+        interview_round: 'Round 1: Technical & Competency Discussion',
         recruiter_name: recruiter.name,
         recruiter_title: recruiter.title,
         matched_skills: matchedSkills,
-        feedback: `Resume and profile successfully verified through ${signal.company_name} Corporate ATS. Strong alignment with ${roleTitle} specifications with verified domain competencies.`,
+        feedback: `Resume and profile successfully verified through ${signal.company_name} Corporate ATS. 96% match score achieved for ${roleTitle} with strong mastery across verified domain competencies.`,
       };
 
       const newApp: JobApplication = {
@@ -219,7 +320,7 @@ export const JobApplicationModal: React.FC<JobApplicationModalProps> = ({
       if (onApplicationSubmitted) {
         onApplicationSubmitted(newApp);
       }
-    }, 1300);
+    }, 1350);
   };
 
   const handleDownloadAcceptanceTicket = () => {
@@ -241,10 +342,12 @@ Scheduled Date:     ${submittedApp.acceptance_details.interview_date}
 Scheduled Time:     ${submittedApp.acceptance_details.interview_time}
 Interview Round:    ${submittedApp.acceptance_details.interview_round}
 
+Verified Skills:    ${submittedApp.skills_summary}
+
 Resume Evaluation:
 "${submittedApp.acceptance_details.feedback}"
 
-Official Portal:    ${officialPortal}
+Official Portal:    ${directPortalUrl}
 ================================================================
 CareerSignal Verified Corporate Recruiting Network
     `;
@@ -262,6 +365,8 @@ CareerSignal Verified Corporate Recruiting Network
     onClose();
   };
 
+  const suggestedSkills = getSuggestedSkills(roleTitle);
+
   return (
     <div style={{
       position: 'fixed',
@@ -277,7 +382,7 @@ CareerSignal Verified Corporate Recruiting Network
     }}>
       <div style={{
         width: '100%',
-        maxWidth: '720px',
+        maxWidth: '740px',
         maxHeight: '92vh',
         backgroundColor: '#12141a',
         border: '1px solid rgba(56, 189, 248, 0.35)',
@@ -317,7 +422,7 @@ CareerSignal Verified Corporate Recruiting Network
                 {signal.company_name} Job Application Portal
               </h3>
               <p style={{ fontSize: '0.74rem', color: '#38bdf8', margin: '0.15rem 0 0 0' }}>
-                Open to Students & Working Employees • Guaranteed Resume Review & Acceptance
+                Open to Students & Working Employees • Role-Adaptive Dynamic Resume & Skills
               </p>
             </div>
           </div>
@@ -360,9 +465,9 @@ CareerSignal Verified Corporate Recruiting Network
               }}>
                 <div>
                   <div style={{ fontSize: '0.7rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase' }}>
-                    Applying For
+                    Applying For Direct Job Position
                   </div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff' }}>
+                  <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#ffffff' }}>
                     {roleTitle}
                   </div>
                   <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.15rem' }}>
@@ -371,14 +476,14 @@ CareerSignal Verified Corporate Recruiting Network
                 </div>
 
                 <a
-                  href={officialPortal}
+                  href={directPortalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.3rem',
+                    gap: '0.35rem',
                     color: '#38bdf8',
                     fontSize: '0.74rem',
                     fontWeight: 600,
@@ -453,8 +558,8 @@ CareerSignal Verified Corporate Recruiting Network
                 </div>
 
                 {/* Quick 1-Click Auto Fill Profiles */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.55rem' }}>
-                  <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Quick-Fill Sample:</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.55rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Quick Sample Data:</span>
                   <button
                     type="button"
                     onClick={loadStudentPreset}
@@ -483,7 +588,7 @@ CareerSignal Verified Corporate Recruiting Network
                       cursor: 'pointer',
                     }}
                   >
-                    💼 Rahul (4 Yrs Designer)
+                    💼 Rahul (Experienced Lead)
                   </button>
                 </div>
               </div>
@@ -499,7 +604,7 @@ CareerSignal Verified Corporate Recruiting Network
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g., Alex Chen"
+                    placeholder="e.g., Alex Lindqvist"
                     style={{
                       width: '100%',
                       backgroundColor: 'rgba(255, 255, 255, 0.04)',
@@ -522,7 +627,7 @@ CareerSignal Verified Corporate Recruiting Network
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="alex.chen@university.edu"
+                    placeholder="alex.lindqvist@university.edu"
                     style={{
                       width: '100%',
                       backgroundColor: 'rgba(255, 255, 255, 0.04)',
@@ -559,218 +664,644 @@ CareerSignal Verified Corporate Recruiting Network
                 </div>
               </div>
 
-              {/* 3. Conditional Fields: Student VS Employee */}
+              {/* 3. Conditional Track Information with AUTO-DISPLAY DROPDOWNS */}
               {candidateType === 'Student / Fresher' ? (
                 <div style={{
                   backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
                   borderRadius: '12px',
-                  padding: '0.85rem',
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                  gap: '0.75rem',
+                  padding: '1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.85rem',
                 }}>
-                  <div>
-                    <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
-                      University / Institute
-                    </label>
-                    <input
-                      type="text"
-                      value={university}
-                      onChange={(e) => setUniversity(e.target.value)}
-                      placeholder="e.g., IIT Bombay / Stanford"
-                      style={{
-                        width: '100%',
-                        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '6px',
-                        padding: '0.5rem 0.7rem',
-                        color: '#f8fafc',
-                        fontSize: '0.8rem',
-                        outline: 'none',
-                      }}
-                    />
+                  {/* AUTO-DISPLAY INSTITUTE INPUT */}
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                      <label style={{ fontSize: '0.74rem', fontWeight: 600, color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <GraduationCap size={13} style={{ color: '#38bdf8' }} />
+                        University / Institute (Auto-display suggestions as you type) *
+                      </label>
+                      <span style={{ fontSize: '0.68rem', color: '#38bdf8', fontWeight: 600 }}>
+                        Auto-Completes Degree Major
+                      </span>
+                    </div>
+
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="text"
+                        required
+                        value={university}
+                        onChange={(e) => {
+                          setUniversity(e.target.value);
+                          setInstituteSearch(e.target.value);
+                          setShowInstituteDropdown(true);
+                        }}
+                        onFocus={() => setShowInstituteDropdown(true)}
+                        placeholder="Type to auto-display: IIT Bombay, Stanford, MIT, BITS..."
+                        style={{
+                          width: '100%',
+                          backgroundColor: 'rgba(15, 23, 42, 0.7)',
+                          border: showInstituteDropdown ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.15)',
+                          borderRadius: '8px',
+                          padding: '0.6rem 0.85rem',
+                          color: '#f8fafc',
+                          fontSize: '0.82rem',
+                          outline: 'none',
+                          boxShadow: showInstituteDropdown ? '0 0 12px rgba(56, 189, 248, 0.25)' : 'none',
+                        }}
+                      />
+
+                      {university && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUniversity('');
+                            setInstituteSearch('');
+                            setShowInstituteDropdown(true);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            right: '10px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'none',
+                            border: 'none',
+                            color: '#64748b',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Quick 1-Click Campus Pills */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.68rem', color: '#64748b' }}>Popular:</span>
+                      {POPULAR_INSTITUTES.slice(0, 5).map((inst) => (
+                        <button
+                          key={inst.shortName}
+                          type="button"
+                          onClick={() => handleSelectInstitute(inst)}
+                          style={{
+                            backgroundColor: university.includes(inst.shortName) ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                            border: university.includes(inst.shortName) ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
+                            borderRadius: '9999px',
+                            padding: '0.15rem 0.55rem',
+                            fontSize: '0.68rem',
+                            color: university.includes(inst.shortName) ? '#38bdf8' : '#cbd5e1',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          🎓 {inst.shortName}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Floating Auto-Display Dropdown */}
+                    {showInstituteDropdown && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        marginTop: '0.4rem',
+                        backgroundColor: '#161923',
+                        border: '1px solid rgba(56, 189, 248, 0.4)',
+                        borderRadius: '10px',
+                        boxShadow: '0 15px 35px rgba(0, 0, 0, 0.8), 0 0 20px rgba(56, 189, 248, 0.15)',
+                        zIndex: 60,
+                        maxHeight: '220px',
+                        overflowY: 'auto',
+                        padding: '0.35rem',
+                      }}>
+                        <div style={{ padding: '0.35rem 0.6rem', fontSize: '0.68rem', color: '#38bdf8', fontWeight: 700, borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                          AUTOMATIC MATCHES ({filteredInstitutes.length}) — Click to Select & Auto-Fill Degree
+                        </div>
+                        {filteredInstitutes.length > 0 ? (
+                          filteredInstitutes.map((inst) => (
+                            <div
+                              key={inst.name}
+                              onClick={() => handleSelectInstitute(inst)}
+                              style={{
+                                padding: '0.55rem 0.75rem',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                transition: 'background-color 0.12s ease',
+                                borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.12)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                            >
+                              <div>
+                                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc' }}>
+                                  {inst.name}
+                                </div>
+                                <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.1rem' }}>
+                                  {inst.location} • <span style={{ color: '#34d399' }}>{inst.defaultDegree}</span>
+                                </div>
+                              </div>
+                              <span style={{
+                                fontSize: '0.65rem',
+                                color: '#38bdf8',
+                                backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                                border: '1px solid rgba(56, 189, 248, 0.3)',
+                                padding: '0.15rem 0.45rem',
+                                borderRadius: '4px',
+                                fontWeight: 600,
+                              }}>
+                                {inst.tag}
+                              </span>
+                            </div>
+                          ))
+                        ) : (
+                          <div style={{ padding: '0.75rem', fontSize: '0.74rem', color: '#94a3b8', textAlign: 'center' }}>
+                            No matching institutions found. You can continue typing manually.
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  <div>
-                    <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
-                      Degree & Major
-                    </label>
-                    <input
-                      type="text"
-                      value={degree}
-                      onChange={(e) => setDegree(e.target.value)}
-                      placeholder="e.g., B.Tech Computer Science"
-                      style={{
-                        width: '100%',
-                        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '6px',
-                        padding: '0.5rem 0.7rem',
-                        color: '#f8fafc',
-                        fontSize: '0.8rem',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
+                  {/* Degree & Year & CGPA */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
+                        Degree & Major
+                      </label>
+                      <input
+                        type="text"
+                        value={degree}
+                        onChange={(e) => setDegree(e.target.value)}
+                        placeholder="e.g., B.Tech Computer Science"
+                        style={{
+                          width: '100%',
+                          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          borderRadius: '6px',
+                          padding: '0.5rem 0.7rem',
+                          color: '#f8fafc',
+                          fontSize: '0.8rem',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
 
-                  <div>
-                    <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
-                      Graduation Year / CGPA
-                    </label>
-                    <input
-                      type="text"
-                      value={`${gradYear} • CGPA: ${cgpa}`}
-                      onChange={(e) => setGradYear(e.target.value)}
-                      style={{
-                        width: '100%',
-                        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '6px',
-                        padding: '0.5rem 0.7rem',
-                        color: '#f8fafc',
-                        fontSize: '0.8rem',
-                        outline: 'none',
-                      }}
-                    />
+                    <div>
+                      <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
+                        Graduation Year / CGPA
+                      </label>
+                      <input
+                        type="text"
+                        value={`${gradYear} • CGPA: ${cgpa}`}
+                        onChange={(e) => setGradYear(e.target.value)}
+                        style={{
+                          width: '100%',
+                          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          borderRadius: '6px',
+                          padding: '0.5rem 0.7rem',
+                          color: '#f8fafc',
+                          fontSize: '0.8rem',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               ) : (
+                /* EXPERIENCED EMPLOYEE TRACK */
                 <div style={{
                   backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
                   borderRadius: '12px',
-                  padding: '0.85rem',
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                  gap: '0.75rem',
+                  padding: '1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.85rem',
                 }}>
-                  <div>
-                    <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
-                      Current / Previous Employer
-                    </label>
-                    <input
-                      type="text"
-                      value={currentCompany}
-                      onChange={(e) => setCurrentCompany(e.target.value)}
-                      placeholder="e.g., Infosys / Tech Corp"
-                      style={{
-                        width: '100%',
-                        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '6px',
-                        padding: '0.5rem 0.7rem',
-                        color: '#f8fafc',
-                        fontSize: '0.8rem',
-                        outline: 'none',
-                      }}
-                    />
+                  {/* AUTO-DISPLAY COMPANY INPUT */}
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                      <label style={{ fontSize: '0.74rem', fontWeight: 600, color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <Building2 size={13} style={{ color: '#38bdf8' }} />
+                        Current / Previous Employer (Auto-display suggestions as you type) *
+                      </label>
+                      <span style={{ fontSize: '0.68rem', color: '#38bdf8', fontWeight: 600 }}>
+                        Auto-Fills Recommended Title
+                      </span>
+                    </div>
+
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="text"
+                        required
+                        value={currentCompany}
+                        onChange={(e) => {
+                          setCurrentCompany(e.target.value);
+                          setCompanySearch(e.target.value);
+                          setShowCompanyDropdown(true);
+                        }}
+                        onFocus={() => setShowCompanyDropdown(true)}
+                        placeholder="Type to auto-display: Microsoft, Google, Amazon, Infosys..."
+                        style={{
+                          width: '100%',
+                          backgroundColor: 'rgba(15, 23, 42, 0.7)',
+                          border: showCompanyDropdown ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.15)',
+                          borderRadius: '8px',
+                          padding: '0.6rem 0.85rem',
+                          color: '#f8fafc',
+                          fontSize: '0.82rem',
+                          outline: 'none',
+                          boxShadow: showCompanyDropdown ? '0 0 12px rgba(56, 189, 248, 0.25)' : 'none',
+                        }}
+                      />
+
+                      {currentCompany && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCurrentCompany('');
+                            setCompanySearch('');
+                            setShowCompanyDropdown(true);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            right: '10px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'none',
+                            border: 'none',
+                            color: '#64748b',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Quick 1-Click Employer Pills */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.68rem', color: '#64748b' }}>Popular:</span>
+                      {POPULAR_COMPANIES.slice(0, 5).map((comp) => (
+                        <button
+                          key={comp.name}
+                          type="button"
+                          onClick={() => handleSelectCompany(comp)}
+                          style={{
+                            backgroundColor: currentCompany.includes(comp.name) ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                            border: currentCompany.includes(comp.name) ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
+                            borderRadius: '9999px',
+                            padding: '0.15rem 0.55rem',
+                            fontSize: '0.68rem',
+                            color: currentCompany.includes(comp.name) ? '#38bdf8' : '#cbd5e1',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          💼 {comp.name}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Floating Auto-Display Dropdown */}
+                    {showCompanyDropdown && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        marginTop: '0.4rem',
+                        backgroundColor: '#161923',
+                        border: '1px solid rgba(56, 189, 248, 0.4)',
+                        borderRadius: '10px',
+                        boxShadow: '0 15px 35px rgba(0, 0, 0, 0.8), 0 0 20px rgba(56, 189, 248, 0.15)',
+                        zIndex: 60,
+                        maxHeight: '220px',
+                        overflowY: 'auto',
+                        padding: '0.35rem',
+                      }}>
+                        <div style={{ padding: '0.35rem 0.6rem', fontSize: '0.68rem', color: '#38bdf8', fontWeight: 700, borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                          MATCHING ENTERPRISES ({filteredCompanies.length}) — Click to Select & Auto-Fill Title
+                        </div>
+                        {filteredCompanies.map((comp) => (
+                          <div
+                            key={comp.name}
+                            onClick={() => handleSelectCompany(comp)}
+                            style={{
+                              padding: '0.55rem 0.75rem',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              transition: 'background-color 0.12s ease',
+                              borderBottom: '1px solid rgba(255, 255, 255, 0.03)',
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.12)')}
+                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                          >
+                            <div>
+                              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc' }}>
+                                {comp.name}
+                              </div>
+                              <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.1rem' }}>
+                                {comp.location} • <span style={{ color: '#34d399' }}>{comp.suggestedTitle}</span>
+                              </div>
+                            </div>
+                            <span style={{
+                              fontSize: '0.65rem',
+                              color: '#38bdf8',
+                              backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                              border: '1px solid rgba(56, 189, 248, 0.3)',
+                              padding: '0.15rem 0.45rem',
+                              borderRadius: '4px',
+                              fontWeight: 600,
+                            }}>
+                              {comp.tag}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  <div>
-                    <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
-                      Total Industry Experience
-                    </label>
-                    <input
-                      type="text"
-                      value={experienceYears}
-                      onChange={(e) => setExperienceYears(e.target.value)}
-                      placeholder="e.g., 4 Years"
-                      style={{
-                        width: '100%',
-                        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '6px',
-                        padding: '0.5rem 0.7rem',
-                        color: '#f8fafc',
-                        fontSize: '0.8rem',
-                        outline: 'none',
-                      }}
-                    />
-                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
+                        Current / Most Recent Title
+                      </label>
+                      <input
+                        type="text"
+                        value={currentTitle}
+                        onChange={(e) => setCurrentTitle(e.target.value)}
+                        placeholder="e.g., Software Systems Analyst"
+                        style={{
+                          width: '100%',
+                          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          borderRadius: '6px',
+                          padding: '0.5rem 0.7rem',
+                          color: '#f8fafc',
+                          fontSize: '0.8rem',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
 
-                  <div>
-                    <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
-                      Notice Period
-                    </label>
-                    <input
-                      type="text"
-                      value={noticePeriod}
-                      onChange={(e) => setNoticePeriod(e.target.value)}
-                      placeholder="e.g., 15 Days / Immediate"
-                      style={{
-                        width: '100%',
-                        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '6px',
-                        padding: '0.5rem 0.7rem',
-                        color: '#f8fafc',
-                        fontSize: '0.8rem',
-                        outline: 'none',
-                      }}
-                    />
+                    <div>
+                      <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.3rem' }}>
+                        Total Experience / Notice Period
+                      </label>
+                      <input
+                        type="text"
+                        value={`${experienceYears} • Notice: ${noticePeriod}`}
+                        onChange={(e) => setExperienceYears(e.target.value)}
+                        style={{
+                          width: '100%',
+                          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          borderRadius: '6px',
+                          padding: '0.5rem 0.7rem',
+                          color: '#f8fafc',
+                          fontSize: '0.8rem',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* 4. Resume File & AI Match Engine */}
+              {/* 4. DYNAMIC RESUME FILE & AI MATCH ENGINE */}
               <div style={{
-                border: '1px dashed rgba(56, 189, 248, 0.35)',
-                backgroundColor: 'rgba(15, 23, 42, 0.5)',
-                borderRadius: '12px',
-                padding: '1rem',
+                border: '1px dashed rgba(56, 189, 248, 0.4)',
+                backgroundColor: 'rgba(15, 23, 42, 0.55)',
+                borderRadius: '14px',
+                padding: '1.1rem',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '0.75rem',
+                gap: '0.85rem',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                    <UploadCloud size={24} style={{ color: '#38bdf8' }} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.65rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '10px',
+                      backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#38bdf8',
+                    }}>
+                      <UploadCloud size={22} />
+                    </div>
                     <div>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>
-                        {resumeName}
+                      <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span>{resumeName}</span>
+                        {uploadSuccess && <CheckCircle size={14} style={{ color: '#10b981' }} />}
                       </div>
-                      <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                        Ready for automated corporate ATS parsing & verification
+                      <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                        {isUploading ? `Scanning resume keywords for ${roleTitle}...` : `Tailored for ${roleTitle} (${signal.company_name})`}
                       </div>
                     </div>
                   </div>
 
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                    border: '1px solid rgba(16, 185, 129, 0.4)',
-                    borderRadius: '9999px',
-                    padding: '0.25rem 0.65rem',
-                    fontSize: '0.72rem',
-                    color: '#34d399',
-                    fontWeight: 700,
-                  }}>
-                    <Award size={13} />
-                    <span>96% Role Compatibility Match</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                    {/* Hidden Real File Input */}
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      accept=".pdf,.docx,.doc"
+                      style={{ display: 'none' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                      style={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: '8px',
+                        padding: '0.35rem 0.75rem',
+                        color: '#cbd5e1',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {isUploading ? 'Scanning...' : 'Upload Other Resume'}
+                    </button>
+
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                      border: '1px solid rgba(16, 185, 129, 0.4)',
+                      borderRadius: '9999px',
+                      padding: '0.28rem 0.7rem',
+                      fontSize: '0.72rem',
+                      color: '#34d399',
+                      fontWeight: 700,
+                    }}>
+                      <Award size={13} />
+                      <span>96% ATS Compatibility</span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Matched Skills Chips */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Verified Resume Skills:</span>
-                  {matchedSkills.map((s) => (
-                    <span
-                      key={s}
+                {/* ROLE-SPECIFIC VERIFIED RESUME SKILLS (INTERACTIVE CHIPS) */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 700 }}>
+                      Verified Resume Competencies for {roleTitle} ({matchedSkills.length} Verified):
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddSkillInput(!showAddSkillInput)}
                       style={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '4px',
-                        padding: '0.15rem 0.45rem',
-                        fontSize: '0.68rem',
-                        color: '#cbd5e1',
+                        background: 'none',
+                        border: 'none',
+                        color: '#38bdf8',
+                        fontSize: '0.7rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
                       }}
                     >
-                      ✓ {s}
-                    </span>
-                  ))}
+                      <Plus size={12} />
+                      <span>Add Custom Skill</span>
+                    </button>
+                  </div>
+
+                  {/* Skills Tag List */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                    {matchedSkills.map((s) => (
+                      <span
+                        key={s}
+                        style={{
+                          backgroundColor: 'rgba(37, 99, 235, 0.15)',
+                          border: '1px solid rgba(37, 99, 235, 0.35)',
+                          borderRadius: '6px',
+                          padding: '0.25rem 0.55rem',
+                          fontSize: '0.72rem',
+                          color: '#93c5fd',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                        }}
+                      >
+                        <span>✓ {s}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSkill(s)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#94a3b8',
+                            cursor: 'pointer',
+                            padding: 0,
+                            lineHeight: 1,
+                          }}
+                          title={`Remove ${s}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Optional Custom Skill Input */}
+                  {showAddSkillInput && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.5rem' }}>
+                      <input
+                        type="text"
+                        value={newSkillInput}
+                        onChange={(e) => setNewSkillInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCustomSkill();
+                          }
+                        }}
+                        placeholder="Type skill & press Enter (e.g., Kafka, Docker, Figma)..."
+                        style={{
+                          flex: 1,
+                          backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                          border: '1px solid #38bdf8',
+                          borderRadius: '6px',
+                          padding: '0.35rem 0.65rem',
+                          color: '#f8fafc',
+                          fontSize: '0.74rem',
+                          outline: 'none',
+                        }}
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddCustomSkill()}
+                        style={{
+                          backgroundColor: '#2563eb',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '0.35rem 0.75rem',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddSkillInput(false)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#64748b',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 1-Click Recommended Skill Additions */}
+                  {suggestedSkills.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.68rem', color: '#64748b' }}>1-Click Recommended Additions:</span>
+                      {suggestedSkills.map((sk) => (
+                        <button
+                          key={sk}
+                          type="button"
+                          onClick={() => handleAddSuggestedSkill(sk)}
+                          disabled={matchedSkills.includes(sk)}
+                          style={{
+                            backgroundColor: matchedSkills.includes(sk) ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.04)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: '4px',
+                            padding: '0.15rem 0.45rem',
+                            fontSize: '0.66rem',
+                            color: matchedSkills.includes(sk) ? '#475569' : '#38bdf8',
+                            cursor: matchedSkills.includes(sk) ? 'default' : 'pointer',
+                          }}
+                        >
+                          + {sk}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -825,7 +1356,7 @@ CareerSignal Verified Corporate Recruiting Network
                     backgroundColor: '#2563eb',
                     border: 'none',
                     borderRadius: '8px',
-                    padding: '0.6rem 1.4rem',
+                    padding: '0.65rem 1.5rem',
                     color: '#ffffff',
                     fontSize: '0.84rem',
                     fontWeight: 700,
@@ -842,9 +1373,7 @@ CareerSignal Verified Corporate Recruiting Network
               </div>
             </form>
           ) : (
-            /* ======================================================== */
             /* OFFICIAL COMPANY ACCEPTANCE & INTERVIEW CONFIRMATION PASS */
-            /* ======================================================== */
             <div style={{
               display: 'flex',
               flexDirection: 'column',
@@ -892,7 +1421,7 @@ CareerSignal Verified Corporate Recruiting Network
                     Congratulations, {submittedApp.applicant_name}!
                   </h3>
                   <p style={{ fontSize: '0.8rem', color: '#cbd5e1', maxWidth: '480px', margin: '0 auto' }}>
-                    Your resume has passed corporate ATS evaluation with a <strong>96% match score</strong>. {submittedApp.company_name} Talent Acquisition has accepted your candidacy!
+                    Your resume has passed corporate ATS evaluation with a <strong>96% match score</strong>. {submittedApp.company_name} Talent Acquisition has accepted your candidacy for <strong>{submittedApp.role_title}</strong>!
                   </p>
                 </div>
               </div>
@@ -935,7 +1464,7 @@ CareerSignal Verified Corporate Recruiting Network
                   fontSize: '0.78rem',
                 }}>
                   <div>
-                    <span style={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }}>Company & Role</span>
+                    <span style={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }}>Company & Target Role</span>
                     <strong style={{ color: '#ffffff' }}>{submittedApp.company_name}</strong>
                     <div style={{ color: '#38bdf8' }}>{submittedApp.role_title}</div>
                   </div>
@@ -960,6 +1489,37 @@ CareerSignal Verified Corporate Recruiting Network
                       <Clock size={13} style={{ color: '#38bdf8' }} />
                       <span>{submittedApp.acceptance_details?.interview_time}</span>
                     </div>
+                  </div>
+                </div>
+
+                {/* Verified Competencies */}
+                <div style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  borderRadius: '8px',
+                  padding: '0.65rem 0.85rem',
+                  fontSize: '0.74rem',
+                  color: '#cbd5e1',
+                }}>
+                  <strong style={{ color: '#38bdf8', display: 'block', marginBottom: '0.3rem' }}>
+                    ATS Verified Competencies for {submittedApp.role_title}:
+                  </strong>
+                  <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                    {submittedApp.acceptance_details?.matched_skills.map((s) => (
+                      <span
+                        key={s}
+                        style={{
+                          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          borderRadius: '4px',
+                          padding: '0.15rem 0.45rem',
+                          fontSize: '0.68rem',
+                          color: '#34d399',
+                        }}
+                      >
+                        ✓ {s}
+                      </span>
+                    ))}
                   </div>
                 </div>
 
@@ -1005,7 +1565,7 @@ CareerSignal Verified Corporate Recruiting Network
                 </button>
 
                 <a
-                  href={officialPortal}
+                  href={directPortalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}

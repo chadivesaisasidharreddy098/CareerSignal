@@ -24,12 +24,28 @@ export const RightRailDashboard: React.FC<RightRailDashboardProps> = ({
   applications = [],
 }) => {
   const [selectedMonth, setSelectedMonth] = useState('Feb 2023');
+  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<number | null>(5);
+  const [dayTooltip, setDayTooltip] = useState<string | null>('Microsoft Interview: 10:30 AM IST');
   const [connectedUsers, setConnectedUsers] = useState<Record<string, boolean>>({});
   const [activeMessageContact, setActiveMessageContact] = useState<string | null>(null);
   const [quickMsgText, setQuickMsgText] = useState('');
   const [sentConfirm, setSentConfirm] = useState<string | null>(null);
 
+  const months = ['Feb 2023', 'Nov 2026', 'Dec 2026', 'Jan 2027'];
+
   const latestAccepted = applications.find((a) => a.acceptance_details);
+
+  const handleDayClick = (num: number) => {
+    setSelectedDay(num);
+    if (num >= 4 && num <= 7) {
+      setDayTooltip(`Active Technical Evaluation: ${latestAccepted?.company_name || 'Microsoft'} · Round 1 Portfolio`);
+    } else if (num === 12 || num === 15) {
+      setDayTooltip('Follow-up with Adobe Talent Acquisition Partner');
+    } else {
+      setDayTooltip(`Scheduled focus day: Practice System Design`);
+    }
+  };
 
   const recruiterMessages = applications
     .filter((a) => a.acceptance_details)
@@ -168,24 +184,68 @@ export const RightRailDashboard: React.FC<RightRailDashboardProps> = ({
           </span>
         </div>
 
-        {/* Month Selector */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.4rem' }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            backgroundColor: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '6px',
-            padding: '0.25rem 0.55rem',
-            fontSize: '0.72rem',
-            color: '#cbd5e1',
-            width: 'fit-content',
-          }}>
-            <CalendarIcon size={12} style={{ color: '#64748b' }} />
+        {/* Month Selector with Interactive Dropdown */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.4rem', position: 'relative' }}>
+          <button
+            type="button"
+            onClick={() => setIsMonthPickerOpen(!isMonthPickerOpen)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              borderRadius: '6px',
+              padding: '0.25rem 0.55rem',
+              fontSize: '0.72rem',
+              color: '#cbd5e1',
+              cursor: 'pointer',
+            }}
+          >
+            <CalendarIcon size={12} style={{ color: '#38bdf8' }} />
             <span>{selectedMonth}</span>
-            <ChevronDown size={12} style={{ color: '#64748b' }} />
-          </div>
+            <ChevronDown size={12} style={{ color: '#94a3b8' }} />
+          </button>
+
+          {isMonthPickerOpen && (
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              marginTop: '0.35rem',
+              backgroundColor: '#1b1d24',
+              border: '1px solid rgba(56, 189, 248, 0.4)',
+              borderRadius: '8px',
+              padding: '0.3rem',
+              zIndex: 40,
+              boxShadow: '0 8px 20px rgba(0,0,0,0.7)',
+            }}>
+              {months.map((m) => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    setSelectedMonth(m);
+                    setIsMonthPickerOpen(false);
+                  }}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '0.3rem 0.6rem',
+                    backgroundColor: selectedMonth === m ? 'rgba(37, 99, 235, 0.2)' : 'transparent',
+                    color: selectedMonth === m ? '#38bdf8' : '#cbd5e1',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+          )}
 
           {latestAccepted && latestAccepted.acceptance_details && (
             <span style={{
@@ -201,6 +261,20 @@ export const RightRailDashboard: React.FC<RightRailDashboardProps> = ({
             </span>
           )}
         </div>
+
+        {dayTooltip && (
+          <div style={{
+            fontSize: '0.68rem',
+            color: '#38bdf8',
+            backgroundColor: 'rgba(56, 189, 248, 0.08)',
+            border: '1px solid rgba(56, 189, 248, 0.25)',
+            padding: '0.25rem 0.5rem',
+            borderRadius: '6px',
+            lineHeight: 1.3,
+          }}>
+            {dayTooltip}
+          </div>
+        )}
 
         {/* Calendar Days Matrix */}
         <div style={{
@@ -225,57 +299,61 @@ export const RightRailDashboard: React.FC<RightRailDashboardProps> = ({
           ))}
 
           {/* Row 2 with Active Schedule Span (4, 5, 6, 7) */}
-          <span style={{ color: '#8c93a3', padding: '0.2rem 0' }}>3</span>
+          <span onClick={() => handleDayClick(3)} style={{ color: '#8c93a3', padding: '0.2rem 0', cursor: 'pointer' }}>3</span>
           {/* Span Highlight Container */}
-          <span style={{
-            backgroundColor: '#2563eb',
+          <span onClick={() => handleDayClick(4)} style={{
+            backgroundColor: selectedDay === 4 ? '#38bdf8' : '#2563eb',
             color: '#ffffff',
             fontWeight: 700,
             borderTopLeftRadius: '9999px',
             borderBottomLeftRadius: '9999px',
             padding: '0.2rem 0',
+            cursor: 'pointer',
           }}>
             4
           </span>
-          <span style={{
-            backgroundColor: '#2563eb',
+          <span onClick={() => handleDayClick(5)} style={{
+            backgroundColor: selectedDay === 5 ? '#38bdf8' : '#2563eb',
             color: '#ffffff',
             fontWeight: 700,
             padding: '0.2rem 0',
+            cursor: 'pointer',
           }}>
             5
           </span>
-          <span style={{
-            backgroundColor: '#2563eb',
+          <span onClick={() => handleDayClick(6)} style={{
+            backgroundColor: selectedDay === 6 ? '#38bdf8' : '#2563eb',
             color: '#ffffff',
             fontWeight: 700,
             padding: '0.2rem 0',
+            cursor: 'pointer',
           }}>
             6
           </span>
-          <span style={{
-            backgroundColor: '#2563eb',
+          <span onClick={() => handleDayClick(7)} style={{
+            backgroundColor: selectedDay === 7 ? '#38bdf8' : '#2563eb',
             color: '#ffffff',
             fontWeight: 700,
             borderTopRightRadius: '9999px',
             borderBottomRightRadius: '9999px',
             padding: '0.2rem 0',
+            cursor: 'pointer',
           }}>
             7
           </span>
-          <span style={{ color: '#8c93a3', padding: '0.2rem 0' }}>8</span>
-          <span style={{ color: '#8c93a3', padding: '0.2rem 0' }}>9</span>
+          <span onClick={() => handleDayClick(8)} style={{ color: '#8c93a3', padding: '0.2rem 0', cursor: 'pointer' }}>8</span>
+          <span onClick={() => handleDayClick(9)} style={{ color: '#8c93a3', padding: '0.2rem 0', cursor: 'pointer' }}>9</span>
 
           {/* Row 3 */}
           {[10, 11, 12, 13, 14, 15, 16].map((num) => (
-            <span key={num} style={{ color: '#8c93a3', padding: '0.2rem 0' }}>
+            <span key={num} onClick={() => handleDayClick(num)} style={{ color: selectedDay === num ? '#38bdf8' : '#8c93a3', fontWeight: selectedDay === num ? 700 : 400, padding: '0.2rem 0', cursor: 'pointer' }}>
               {num}
             </span>
           ))}
 
           {/* Row 4 */}
           {[17, 18, 19, 20, 21, 22, 23].map((num) => (
-            <span key={num} style={{ color: '#8c93a3', padding: '0.2rem 0' }}>
+            <span key={num} onClick={() => handleDayClick(num)} style={{ color: selectedDay === num ? '#38bdf8' : '#8c93a3', fontWeight: selectedDay === num ? 700 : 400, padding: '0.2rem 0', cursor: 'pointer' }}>
               {num}
             </span>
           ))}
